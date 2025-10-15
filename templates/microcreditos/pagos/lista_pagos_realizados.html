@@ -1,0 +1,540 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Lista de Pagos - YaPresto{% endblock %}
+{% block page_title %}Lista de Pagos Realizados{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        margin-bottom: 25px;
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .badge-metodo {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+    }
+    
+    .pago-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .pago-row:hover {
+        background-color: #f8f9fa;
+        transform: translateY(-1px);
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        border-left: 4px solid;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+    
+    .fecha-badge {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+        border-radius: 20px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .cliente-info {
+        display: flex;
+        align-items: center;
+    }
+    
+    .cliente-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #28a745, #20c997);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<!-- Estadísticas rápidas -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card" style="border-left-color: #28a745;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon" style="background: #28a745;">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="text-muted mb-1">Total Pagado Hoy</h6>
+                        <h4 class="mb-0">${{ stats.total_hoy|floatformat:2 }}</h4>
+                        <small class="text-success">{{ stats.pagos_hoy }} pago(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card" style="border-left-color: #007bff;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon" style="background: #007bff;">
+                        <i class="bi bi-calendar-week"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="text-muted mb-1">Esta Semana</h6>
+                        <h4 class="mb-0">${{ stats.total_semana|floatformat:2 }}</h4>
+                        <small class="text-info">{{ stats.pagos_semana }} pago(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card" style="border-left-color: #ffc107;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon" style="background: #ffc107;">
+                        <i class="bi bi-calendar-month"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="text-muted mb-1">Este Mes</h6>
+                        <h4 class="mb-0">${{ stats.total_mes|floatformat:2 }}</h4>
+                        <small class="text-warning">{{ stats.pagos_mes }} pago(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stat-card" style="border-left-color: #6f42c1;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon" style="background: #6f42c1;">
+                        <i class="bi bi-graph-up"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h6 class="text-muted mb-1">Total General</h6>
+                        <h4 class="mb-0">${{ stats.total_general|floatformat:2 }}</h4>
+                        <small class="text-primary">{{ stats.pagos_total }} pago(s)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <div class="card-body">
+        <h5 class="mb-4">
+            <i class="bi bi-funnel me-2"></i>Filtros de Búsqueda
+        </h5>
+        
+        <form method="get" id="form-filtros">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cliente:</label>
+                    <input type="text" name="cliente" class="form-control" 
+                           value="{{ request.GET.cliente }}" 
+                           placeholder="Buscar por cliente...">
+                </div>
+                
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Fecha Desde:</label>
+                    <input type="date" name="fecha_desde" class="form-control" 
+                           value="{{ request.GET.fecha_desde }}">
+                </div>
+                
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Fecha Hasta:</label>
+                    <input type="date" name="fecha_hasta" class="form-control" 
+                           value="{{ request.GET.fecha_hasta }}">
+                </div>
+                
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Método de Pago:</label>
+                    <select name="metodo_pago" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="efectivo" {% if request.GET.metodo_pago == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                        <option value="transferencia" {% if request.GET.metodo_pago == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                        <option value="cheque" {% if request.GET.metodo_pago == 'cheque' %}selected{% endif %}>Cheque</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Monto Mínimo:</label>
+                    <input type="number" name="monto_min" class="form-control" 
+                           step="0.01" value="{{ request.GET.monto_min }}" 
+                           placeholder="0.00">
+                </div>
+                
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-light me-2">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <a href="{% url 'microcreditos:lista_pagos_realizados' %}" class="btn btn-outline-light">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabla de pagos -->
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list-check me-2"></i>Pagos Realizados
+            {% if pagos.count > 0 %}
+                <span class="badge bg-primary ms-2">{{ pagos.count }}</span>
+            {% endif %}
+        </h5>
+        
+        <div class="btn-group">
+            <a href="{% url 'microcreditos:registrar_pago' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-2"></i>Nuevo Pago
+            </a>
+            <button type="button" class="btn btn-outline-primary" onclick="exportarPagos()">
+                <i class="bi bi-download me-2"></i>Exportar
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if pagos %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Crédito</th>
+                        <th>Monto</th>
+                        <th>Método</th>
+                        <th>Cuotas Pagadas</th>
+                        <th>Referencia</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pago in pagos %}
+                    <tr class="pago-row" onclick="verDetallePago({{ pago.id }})">
+                        <td>
+                            <div class="fecha-badge">
+                                {{ pago.fecha_pago|date:"d/m/Y" }}
+                                <small class="d-block mt-1">{{ pago.fecha_pago|time:"H:i" }}</small>
+                            </div>
+                        </td>
+                        
+                        <td>
+                            <div class="cliente-info">
+                                <div class="cliente-avatar">
+                                    {{ pago.cliente.nombres.0|upper }}{{ pago.cliente.apellidos.0|upper }}
+                                </div>
+                                <div>
+                                    <strong>{{ pago.cliente.nombre_completo }}</strong>
+                                    <small class="d-block text-muted">{{ pago.cliente.cedula }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <td>
+                            <span class="fw-bold">Crédito #{{ pago.prestamo.id }}</span>
+                            <small class="d-block text-muted">
+                                ${{ pago.prestamo.monto|floatformat:2 }} 
+                                ({{ pago.prestamo.plazo_meses }} meses)
+                            </small>
+                        </td>
+                        
+                        <td>
+                            <h6 class="mb-0 text-success">${{ pago.monto_pagado|floatformat:2 }}</h6>
+                        </td>
+                        
+                        <td>
+                            {% if pago.metodo_pago == 'efectivo' %}
+                                <span class="badge badge-metodo bg-success">
+                                    <i class="bi bi-cash me-1"></i>Efectivo
+                                </span>
+                            {% elif pago.metodo_pago == 'transferencia' %}
+                                <span class="badge badge-metodo bg-info">
+                                    <i class="bi bi-bank me-1"></i>Transferencia
+                                </span>
+                            {% elif pago.metodo_pago == 'cheque' %}
+                                <span class="badge badge-metodo bg-warning text-dark">
+                                    <i class="bi bi-card-checklist me-1"></i>Cheque
+                                </span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            <span class="badge bg-primary">
+                                {{ pago.cuotas_pagadas.count }} cuota(s)
+                            </span>
+                        </td>
+                        
+                        <td>
+                            {% if pago.referencia %}
+                                <code>{{ pago.referencia }}</code>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" 
+                                        onclick="event.stopPropagation(); verDetallePago({{ pago.id }})"
+                                        title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                
+                                <button type="button" class="btn btn-outline-info" 
+                                        onclick="event.stopPropagation(); imprimirRecibo({{ pago.id }})"
+                                        title="Imprimir recibo">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                                
+                                {% if user.is_staff %}
+                                <button type="button" class="btn btn-outline-warning" 
+                                        onclick="event.stopPropagation(); editarPago({{ pago.id }})"
+                                        title="Editar">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <div class="card-footer bg-light">
+            <nav aria-label="Navegación de páginas">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <!-- Estado vacío -->
+        <div class="empty-state">
+            <i class="bi bi-receipt-cutoff"></i>
+            <h4>No hay pagos registrados</h4>
+            <p class="text-muted">
+                {% if request.GET %}
+                    No se encontraron pagos que coincidan con los filtros aplicados.
+                {% else %}
+                    Aún no se han registrado pagos en el sistema.
+                {% endif %}
+            </p>
+            
+            <div class="mt-4">
+                {% if request.GET %}
+                <a href="{% url 'microcreditos:lista_pagos_realizados' %}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Limpiar Filtros
+                </a>
+                {% endif %}
+                
+                <a href="{% url 'microcreditos:registrar_pago' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-2"></i>Registrar Primer Pago
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal para detalle de pago -->
+<div class="modal fade" id="modalDetallePago" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-receipt me-2"></i>Detalle del Pago
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="contenido-detalle-pago">
+                <!-- Se carga dinámicamente -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="imprimirRecibo()">
+                    <i class="bi bi-printer me-2"></i>Imprimir Recibo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function verDetallePago(pagoId) {
+    fetch(`{% url 'microcreditos:detalle_registro_pago' 0 %}`.replace('0', pagoId))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('contenido-detalle-pago').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('modalDetallePago'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar el detalle del pago');
+        });
+}
+
+function imprimirRecibo(pagoId) {
+    if (pagoId) {
+        window.open(`/microcreditos/pagos/${pagoId}/recibo/`, '_blank');
+    } else {
+        // Imprimir desde el modal
+        const contenido = document.getElementById('contenido-detalle-pago').innerHTML;
+        const ventana = window.open('', '_blank');
+        ventana.document.write(`
+            <html>
+                <head>
+                    <title>Recibo de Pago</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <style>
+                        @media print {
+                            .btn { display: none; }
+                        }
+                    </style>
+                </head>
+                <body class="p-3">
+                    ${contenido}
+                    <script>window.print();</script>
+                </body>
+            </html>
+        `);
+        ventana.document.close();
+    }
+}
+
+function editarPago(pagoId) {
+    if (confirm('¿Está seguro de que desea editar este pago?')) {
+        window.location.href = `/microcreditos/pagos/${pagoId}/editar/`;
+    }
+}
+
+function exportarPagos() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'excel');
+    window.location.href = `{% url 'microcreditos:lista_pagos_realizados' %}?${params.toString()}`;
+}
+
+// Auto-submit de filtros
+document.getElementById('form-filtros').addEventListener('submit', function(e) {
+    // Remover campos vacíos antes de enviar
+    const inputs = this.querySelectorAll('input, select');
+    inputs.forEach(input => {
+        if (!input.value) {
+            input.removeAttribute('name');
+        }
+    });
+});
+
+// Filtro en tiempo real para cliente
+let timeoutId;
+document.querySelector('input[name="cliente"]').addEventListener('input', function() {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+        if (this.value.length >= 2 || this.value.length === 0) {
+            this.closest('form').submit();
+        }
+    }, 500);
+});
+</script>
+{% endblock %}

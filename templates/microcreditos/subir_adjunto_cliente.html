@@ -1,0 +1,199 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Subir Adjunto - {{ cliente.nombre_completo }} - YaPresto{% endblock %}
+{% block page_title %}Subir Adjunto{% endblock %}
+
+{% block dashboard_content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:lista_clientes' %}">Clientes</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:detalle_cliente' cliente.id %}">{{ cliente.nombre_completo }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:cliente_adjuntos' cliente.id %}">Adjuntos</a></li>
+                <li class="breadcrumb-item active">Subir</li>
+            </ol>
+        </nav>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-cloud-upload me-2"></i>
+                    Subir Adjunto para {{ cliente.nombre_completo }}
+                </h5>
+                <small>Agregar documento o archivo al expediente del cliente</small>
+            </div>
+            <div class="card-body">
+                <!-- Información del cliente -->
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-person-circle me-2"></i>Información del Cliente</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Nombre:</strong> {{ cliente.nombre_completo }}</p>
+                            <p class="mb-0"><strong>Cédula:</strong> {{ cliente.cedula }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Email:</strong> {{ cliente.email }}</p>
+                            <p class="mb-0"><strong>Estado:</strong> 
+                                <span class="badge bg-{% if cliente.estado == 'activo' %}success{% elif cliente.estado == 'moroso' %}danger{% else %}secondary{% endif %}">
+                                    {{ cliente.get_estado_display }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recomendaciones -->
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle me-2"></i>Recomendaciones</h6>
+                    <ul class="mb-0">
+                        <li>Formatos soportados: PDF, DOC, DOCX, JPG, JPEG, PNG, XLS, XLSX</li>
+                        <li>Tamaño máximo: 10 MB por archivo</li>
+                        <li>Usa nombres descriptivos para facilitar la búsqueda</li>
+                        <li>Marca como confidencial documentos sensibles</li>
+                    </ul>
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.titulo.id_for_label }}" class="form-label">
+                                <i class="bi bi-card-text me-1"></i>{{ form.titulo.label }}
+                            </label>
+                            {{ form.titulo }}
+                            {% if form.titulo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.titulo.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.tipo.id_for_label }}" class="form-label">
+                                <i class="bi bi-tags me-1"></i>{{ form.tipo.label }}
+                            </label>
+                            {{ form.tipo }}
+                            {% if form.tipo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.tipo.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.archivo.id_for_label }}" class="form-label">
+                            <i class="bi bi-file-earmark-arrow-up me-1"></i>{{ form.archivo.label }}
+                        </label>
+                        {{ form.archivo }}
+                        {% if form.archivo.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.archivo.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Selecciona el archivo que deseas subir. Formatos soportados: PDF, DOC, DOCX, JPG, JPEG, PNG, XLS, XLSX
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                            <i class="bi bi-chat-left-text me-1"></i>{{ form.descripcion.label }}
+                        </label>
+                        {{ form.descripcion }}
+                        {% if form.descripcion.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.descripcion.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <div class="form-text">
+                            Proporciona una descripción detallada del documento (opcional)
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            {{ form.es_confidencial }}
+                            <label class="form-check-label" for="{{ form.es_confidencial.id_for_label }}">
+                                <i class="bi bi-lock me-1"></i>{{ form.es_confidencial.label }}
+                            </label>
+                            <div class="form-text">
+                                Marca esta opción si el documento contiene información confidencial
+                            </div>
+                        </div>
+                        {% if form.es_confidencial.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.es_confidencial.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Vista previa del archivo seleccionado -->
+                    <div id="file-preview" class="mb-3" style="display: none;">
+                        <div class="card border-info">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0"><i class="bi bi-eye me-2"></i>Vista Previa</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="file-info"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'microcreditos:cliente_adjuntos' cliente.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-cloud-upload me-2"></i>Subir Adjunto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('{{ form.archivo.id_for_label }}');
+    const preview = document.getElementById('file-preview');
+    const fileInfo = document.getElementById('file-info');
+    
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            preview.style.display = 'block';
+            
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+            const fileType = file.type || 'Tipo desconocido';
+            
+            fileInfo.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Nombre:</strong> ${file.name}</p>
+                        <p class="mb-0"><strong>Tamaño:</strong> ${fileSize} MB</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Tipo:</strong> ${fileType}</p>
+                        <p class="mb-0"><strong>Última modificación:</strong> ${new Date(file.lastModified).toLocaleDateString()}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Validar tamaño
+            if (file.size > 10 * 1024 * 1024) { // 10 MB
+                fileInfo.innerHTML += '<div class="alert alert-danger mt-2">El archivo es demasiado grande. Máximo 10 MB.</div>';
+            }
+        } else {
+            preview.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

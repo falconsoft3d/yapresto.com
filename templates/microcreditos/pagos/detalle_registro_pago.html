@@ -1,0 +1,311 @@
+{% load static %}
+
+<div class="row">
+    <!-- Información del pago -->
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Información del Pago
+                </h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td class="text-muted" width="40%">ID de Pago:</td>
+                        <td><strong>#{{ pago.id }}</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Fecha:</td>
+                        <td>{{ pago.fecha_pago|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Monto Pagado:</td>
+                        <td class="text-success">
+                            <strong>${{ pago.monto_pagado|floatformat:2 }}</strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Método de Pago:</td>
+                        <td>
+                            {% if pago.metodo_pago == 'efectivo' %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-cash me-1"></i>Efectivo
+                                </span>
+                            {% elif pago.metodo_pago == 'transferencia' %}
+                                <span class="badge bg-info">
+                                    <i class="bi bi-bank me-1"></i>Transferencia
+                                </span>
+                            {% elif pago.metodo_pago == 'cheque' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-card-checklist me-1"></i>Cheque
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if pago.referencia %}
+                    <tr>
+                        <td class="text-muted">Referencia:</td>
+                        <td><code>{{ pago.referencia }}</code></td>
+                    </tr>
+                    {% endif %}
+                    {% if pago.observaciones %}
+                    <tr>
+                        <td class="text-muted">Observaciones:</td>
+                        <td>{{ pago.observaciones }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="text-muted">Diario Contable:</td>
+                        <td>{{ pago.diario.nombre }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Información del cliente y crédito -->
+    <div class="col-md-6">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-person-badge me-2"></i>Cliente y Crédito
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Cliente -->
+                <div class="mb-3">
+                    <h6 class="text-primary">Cliente:</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+                            {{ pago.cliente.nombres.0|upper }}{{ pago.cliente.apellidos.0|upper }}
+                        </div>
+                        <div>
+                            <strong>{{ pago.cliente.nombre_completo }}</strong>
+                            <br><small class="text-muted">{{ pago.cliente.cedula }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Crédito -->
+                <div class="mb-3">
+                    <h6 class="text-primary">Crédito:</h6>
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <td class="text-muted" width="40%">ID:</td>
+                            <td><strong>#{{ pago.prestamo.id }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Monto Original:</td>
+                            <td>${{ pago.prestamo.monto|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Plazo:</td>
+                            <td>{{ pago.prestamo.plazo_meses }} meses</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Cuota Mensual:</td>
+                            <td>${{ pago.prestamo.cuota_mensual|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Fecha Inicio:</td>
+                            <td>{{ pago.prestamo.fecha_inicio|date:"d/m/Y" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cuotas pagadas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-check-square me-2"></i>Cuotas Pagadas con este Pago
+                    <span class="badge bg-light text-dark ms-2">{{ pago.cuotas_pagadas.count }}</span>
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if pago.cuotas_pagadas.exists %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cuota #</th>
+                                <th>Fecha Vencimiento</th>
+                                <th>Monto Cuota</th>
+                                <th>Capital</th>
+                                <th>Interés</th>
+                                <th>Monto Aplicado</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for detalle in pago.cuotas_pagadas.all %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-primary">{{ detalle.cuota.numero_cuota }}</span>
+                                </td>
+                                <td>{{ detalle.cuota.fecha_vencimiento|date:"d/m/Y" }}</td>
+                                <td class="text-end">${{ detalle.cuota.cuota|floatformat:2 }}</td>
+                                <td class="text-end">${{ detalle.cuota.capital|floatformat:2 }}</td>
+                                <td class="text-end">${{ detalle.cuota.interes|floatformat:2 }}</td>
+                                <td class="text-end text-success">
+                                    <strong>${{ detalle.monto_aplicado|floatformat:2 }}</strong>
+                                </td>
+                                <td>
+                                    {% if detalle.cuota.estado == 'completado' %}
+                                        <span class="badge bg-success">Pagada</span>
+                                    {% elif detalle.cuota.estado == 'vencido' %}
+                                        <span class="badge bg-danger">Vencida</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr>
+                                <th colspan="5" class="text-end">Total Aplicado:</th>
+                                <th class="text-end text-success">
+                                    ${{ total_aplicado|floatformat:2 }}
+                                </th>
+                                <th></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <p class="mt-2 text-muted">No hay cuotas asociadas a este pago</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen de saldos -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-calculator me-2"></i>Resumen del Crédito
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h6 class="text-muted mb-1">Monto Original</h6>
+                            <h5 class="mb-0">${{ pago.prestamo.monto|floatformat:2 }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h6 class="text-muted mb-1">Total Pagado</h6>
+                            <h5 class="mb-0 text-success">${{ saldo_info.total_pagado|floatformat:2 }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h6 class="text-muted mb-1">Saldo Pendiente</h6>
+                            <h5 class="mb-0 text-danger">${{ saldo_info.saldo_pendiente|floatformat:2 }}</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h6 class="text-muted mb-1">Progreso</h6>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-success" 
+                                     style="width: {{ saldo_info.porcentaje_pagado }}%"></div>
+                            </div>
+                            <h6 class="mb-0">{{ saldo_info.porcentaje_pagado|floatformat:1 }}%</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información de auditoría -->
+{% if user.is_staff %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-secondary">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-shield-check me-2"></i>Información de Auditoría
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td class="text-muted" width="40%">Registrado por:</td>
+                                <td>{{ pago.usuario_registro|default:"Sistema" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Fecha de registro:</td>
+                                <td>{{ pago.fecha_pago|date:"d/m/Y H:i:s" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td class="text-muted" width="40%">ID Transacción:</td>
+                                <td><code>TXN-{{ pago.id|stringformat:"05d" }}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Estado:</td>
+                                <td>
+                                    <span class="badge bg-success">Procesado</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.avatar-sm {
+    width: 35px;
+    height: 35px;
+}
+
+.border {
+    border-color: #dee2e6 !important;
+}
+
+.progress {
+    background-color: #e9ecef;
+}
+
+@media print {
+    .btn {
+        display: none !important;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        page-break-inside: avoid;
+    }
+}</style>

@@ -1,0 +1,208 @@
+{% extends 'landing_base.html' %}
+{% load static %}
+
+{% block title %}YaPresto - Tu Solución en Microcréditos{% endblock %}
+
+{% block landing_content %}
+<!-- Hero Section -->
+<section class="hero-section bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    Tu Solución en <span class="text-warning">Microcréditos</span>
+                </h1>
+                <p class="lead mb-4">
+                    Accede a financiamiento rápido y seguro para hacer crecer tu negocio o cubrir tus necesidades personales. 
+                    Con YaPresto, obtener un préstamo es fácil, rápido y confiable.
+                </p>
+                <div class="d-flex gap-3">
+                    <a href="{% url 'accounts:register' %}" class="btn btn-warning btn-lg">
+                        <i class="bi bi-person-plus"></i> Solicitar Préstamo
+                    </a>
+                    <a href="{% url 'accounts:login' %}" class="btn btn-outline-light btn-lg">
+                        <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="text-center">
+                    <i class="bi bi-bank display-1 text-warning"></i>
+                    <div class="mt-4">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h3 class="text-warning">{{ total_clientes }}+</h3>
+                                <small>Clientes Satisfechos</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="text-warning">{{ total_prestamos }}+</h3>
+                                <small>Préstamos Otorgados</small>
+                            </div>
+                            <div class="col-4">
+                                <h3 class="text-warning">${{ monto_total|floatformat:0 }}</h3>
+                                <small>Millones Prestados</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center mb-5">
+                <h2 class="fw-bold">¿Por qué elegir YaPresto?</h2>
+                <p class="text-muted">Ofrecemos las mejores condiciones del mercado para tus microcréditos</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-lightning-charge display-4 text-primary"></i>
+                        </div>
+                        <h4>Aprobación Rápida</h4>
+                        <p class="text-muted">
+                            Obtén respuesta en menos de 24 horas. Nuestro proceso digitalizado 
+                            te permite acceder a tu préstamo de forma inmediata.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-percent display-4 text-success"></i>
+                        </div>
+                        <h4>Tasas Competitivas</h4>
+                        <p class="text-muted">
+                            Ofrecemos las mejores tasas de interés del mercado, adaptadas 
+                            a tu perfil crediticio y capacidad de pago.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="bi bi-shield-check display-4 text-warning"></i>
+                        </div>
+                        <h4>100% Seguro</h4>
+                        <p class="text-muted">
+                            Tus datos están protegidos con la más alta tecnología de seguridad. 
+                            Cumplimos con todos los estándares internacionales.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center mb-5">
+                <h2 class="fw-bold">Nuestros Servicios</h2>
+                <p class="text-muted">Diferentes tipos de préstamos para cada necesidad</p>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-person-fill display-6 text-primary me-3"></i>
+                            <h4 class="mb-0">Préstamos Personales</h4>
+                        </div>
+                        <p class="text-muted mb-3">
+                            Para gastos personales, emergencias médicas, educación o cualquier necesidad personal.
+                        </p>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Hasta $50,000</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Plazo hasta 60 meses</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Sin garantía hipotecaria</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-shop display-6 text-success me-3"></i>
+                            <h4 class="mb-0">Préstamos Comerciales</h4>
+                        </div>
+                        <p class="text-muted mb-3">
+                            Para hacer crecer tu negocio, comprar inventario o invertir en equipamiento.
+                        </p>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Hasta $200,000</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Plazo hasta 84 meses</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Tasas preferenciales</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-exclamation-triangle display-6 text-warning me-3"></i>
+                            <h4 class="mb-0">Préstamos de Emergencia</h4>
+                        </div>
+                        <p class="text-muted mb-3">
+                            Para situaciones imprevistas que requieren financiamiento inmediato.
+                        </p>
+                        <ul class="list-unstyled">
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Hasta $25,000</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Aprobación en 2 horas</li>
+                            <li><i class="bi bi-check-circle text-success me-2"></i> Mínimos requisitos</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-5 bg-primary text-white">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h2 class="fw-bold mb-4">¿Listo para obtener tu préstamo?</h2>
+                <p class="lead mb-4">
+                    Únete a miles de clientes satisfechos que ya confían en YaPresto para sus necesidades financieras.
+                </p>
+                <a href="{% url 'accounts:register' %}" class="btn btn-warning btn-lg">
+                    <i class="bi bi-arrow-right-circle"></i> Solicitar Ahora
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="py-4 bg-dark text-white">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h5><i class="bi bi-bank"></i> YaPresto</h5>
+                <p class="text-muted">Tu solución confiable en microcréditos</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <p class="text-muted mb-0">© 2025 YaPresto. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </div>
+</footer>
+{% endblock %}

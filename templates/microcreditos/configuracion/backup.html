@@ -1,0 +1,280 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - YaPresto{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-cloud-arrow-up me-2"></i>
+                    {{ titulo }}
+                </h5>
+                <small>{{ descripcion }}</small>
+            </div>
+            <div class="card-body">
+                <!-- Configuración de backup automático -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Backup Automático</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="backupAutomatico" checked>
+                                        <label class="form-check-label" for="backupAutomatico">
+                                            Activar backup automático
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Frecuencia</label>
+                                    <select class="form-select">
+                                        <option value="diario">Diario</option>
+                                        <option value="semanal" selected>Semanal</option>
+                                        <option value="mensual">Mensual</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Hora de Ejecución</label>
+                                    <input type="time" class="form-control" value="02:00">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Retener Backups por</label>
+                                    <select class="form-select">
+                                        <option value="7">7 días</option>
+                                        <option value="30" selected>30 días</option>
+                                        <option value="90">90 días</option>
+                                        <option value="365">1 año</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Ubicación de Respaldo</label>
+                                    <select class="form-select">
+                                        <option value="local">Almacenamiento Local</option>
+                                        <option value="cloud" selected>Nube (recomendado)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="emailNotificacion" checked>
+                                        <label class="form-check-label" for="emailNotificacion">
+                                            Notificar por email
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Backup manual -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Backup Manual</h6>
+                        <button class="btn btn-primary btn-sm" id="btnBackupManual">
+                            <i class="bi bi-download me-2"></i>
+                            Crear Backup Ahora
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Seleccionar Datos a Respaldar:</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="backupClientes" checked>
+                                    <label class="form-check-label" for="backupClientes">
+                                        Datos de Clientes
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="backupPrestamos" checked>
+                                    <label class="form-check-label" for="backupPrestamos">
+                                        Préstamos y Pagos
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="backupUsuarios" checked>
+                                    <label class="form-check-label" for="backupUsuarios">
+                                        Usuarios y Configuración
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="backupReportes">
+                                    <label class="form-check-label" for="backupReportes">
+                                        Historial de Reportes
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Formato de Backup:</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="formatoBackup" id="formatoSQL" checked>
+                                    <label class="form-check-label" for="formatoSQL">
+                                        Base de Datos SQL
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="formatoBackup" id="formatoExcel">
+                                    <label class="form-check-label" for="formatoExcel">
+                                        Archivos Excel
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="formatoBackup" id="formatoJSON">
+                                    <label class="form-check-label" for="formatoJSON">
+                                        Archivos JSON
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Historial de backups -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Historial de Backups</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Tipo</th>
+                                        <th>Tamaño</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <small>2024-12-21 02:00:15</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">Automático</span>
+                                        </td>
+                                        <td>
+                                            <small>2.4 MB</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">Completado</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" title="Descargar">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" title="Restaurar">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <small>2024-12-20 14:30:22</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">Manual</span>
+                                        </td>
+                                        <td>
+                                            <small>2.3 MB</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">Completado</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" title="Descargar">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" title="Restaurar">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <small>2024-12-14 02:00:08</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">Automático</span>
+                                        </td>
+                                        <td>
+                                            <small>2.1 MB</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">Completado</span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary" title="Descargar">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" title="Restaurar">
+                                                    <i class="bi bi-arrow-clockwise"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-clockwise me-2"></i>
+                        Restaurar Configuración
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle me-2"></i>
+                        Guardar Configuración
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('btnBackupManual').addEventListener('click', function() {
+    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Creando Backup...';
+    this.disabled = true;
+    
+    // Simular proceso de backup
+    setTimeout(() => {
+        this.innerHTML = '<i class="bi bi-check-circle me-2"></i>Backup Completado';
+        this.className = 'btn btn-success btn-sm';
+        
+        setTimeout(() => {
+            this.innerHTML = '<i class="bi bi-download me-2"></i>Crear Backup Ahora';
+            this.className = 'btn btn-primary btn-sm';
+            this.disabled = false;
+        }, 2000);
+    }, 3000);
+});
+</script>
+{% endblock %}

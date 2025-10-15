@@ -1,0 +1,368 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - YaPresto{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-section {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    .config-section:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        transform: translateY(-2px);
+    }
+    .section-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .config-card {
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    .config-card:hover {
+        color: inherit;
+        text-decoration: none;
+    }
+    .stats-grid {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    .stat-item {
+        text-align: center;
+        padding: 1rem;
+    }
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .config-active {
+        border-left: 5px solid #28a745;
+        background-color: #f8fff9;
+    }
+    .badge-status {
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<!-- Estadísticas del Sistema -->
+<div class="stats-grid">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">{{ total_configuraciones }}</div>
+                <div>Configuraciones de Crédito</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">
+                    {% if configuracion_activa %}{{ configuracion_activa.interes_anual }}%{% else %}N/A{% endif %}
+                </div>
+                <div>Interés Actual</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">
+                    {% if configuracion_activa %}{{ configuracion_activa.numero_periodos_defecto }}{% else %}N/A{% endif %}
+                </div>
+                <div>Períodos por Defecto</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-item">
+                <div class="stat-number">
+                    {% if configuracion_activa %}{{ configuracion_activa.get_tipo_calculo_display }}{% else %}N/A{% endif %}
+                </div>
+                <div>Tipo de Cálculo</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuración Activa -->
+{% if configuracion_activa %}
+<div class="config-section config-active">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h4 class="mb-2">
+                <i class="bi bi-check-circle text-success me-2"></i>
+                Configuración Activa: {{ configuracion_activa.nombre }}
+            </h4>
+            <p class="text-muted mb-3">{{ configuracion_activa.descripcion|default:"Sin descripción disponible" }}</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Detalles de Interés:</strong>
+                    <ul class="list-unstyled ms-3">
+                        <li><i class="bi bi-percent me-2"></i>Tasa Anual: {{ configuracion_activa.interes_anual }}%</li>
+                        <li><i class="bi bi-calculator me-2"></i>Tasa Mensual: {{ configuracion_activa.interes_mensual|floatformat:2 }}%</li>
+                        <li><i class="bi bi-gear me-2"></i>Tipo: {{ configuracion_activa.get_tipo_calculo_display }}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <strong>Límites y Configuración:</strong>
+                    <ul class="list-unstyled ms-3">
+                        <li><i class="bi bi-currency-dollar me-2"></i>Monto: ${{ configuracion_activa.monto_minimo|floatformat:0 }} - ${{ configuracion_activa.monto_maximo|floatformat:0 }}</li>
+                        <li><i class="bi bi-calendar-date me-2"></i>Períodos: {{ configuracion_activa.periodos_minimos }} - {{ configuracion_activa.periodos_maximos }} meses</li>
+                        <li><i class="bi bi-plus-circle me-2"></i>Pagos Extra: 
+                            {% if configuracion_activa.pagos_extra_permitidos %}
+                            <span class="badge bg-success">Permitidos</span>
+                            {% else %}
+                            <span class="badge bg-danger">No Permitidos</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="text-end">
+            <a href="{% url 'microcreditos:detalle_configuracion_credito' configuracion_activa.id %}" class="btn btn-outline-primary">
+                <i class="bi bi-eye me-2"></i>Ver Detalles
+            </a>
+            <a href="{% url 'microcreditos:editar_configuracion_credito' configuracion_activa.id %}" class="btn btn-primary ms-2">
+                <i class="bi bi-pencil me-2"></i>Editar
+            </a>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="config-section">
+    <div class="text-center py-4">
+        <i class="bi bi-exclamation-triangle display-4 text-warning mb-3"></i>
+        <h4>No hay configuración de crédito activa</h4>
+        <p class="text-muted">Para que el sistema funcione correctamente, necesita al menos una configuración de crédito activa.</p>
+        <a href="{% url 'microcreditos:crear_configuracion_credito' %}" class="btn btn-primary">
+            <i class="bi bi-plus me-2"></i>Crear Configuración
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Secciones de Configuración -->
+<div class="row">
+    <!-- Configuración de Créditos -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <a href="{% url 'microcreditos:configuracion_credito' %}" class="config-card">
+            <div class="config-section h-100">
+                <div class="section-icon">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <h5 class="mb-2">Configuración de Créditos</h5>
+                <p class="text-muted mb-3">Gestiona las tasas de interés, períodos y límites de montos para los préstamos del sistema.</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge badge-status bg-primary">{{ total_configuraciones }} configuraciones</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Gestión de Usuarios -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <a href="{% url 'microcreditos:configuracion_usuarios' %}" class="config-card">
+            <div class="config-section h-100">
+                <div class="section-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h5 class="mb-2">Gestión de Usuarios</h5>
+                <p class="text-muted mb-3">Administra los usuarios del sistema, roles y permisos de acceso.</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge badge-status bg-success">Administradores</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Configuración del Sistema -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <a href="{% url 'microcreditos:configuracion_sistema' %}" class="config-card">
+            <div class="config-section h-100">
+                <div class="section-icon">
+                    <i class="bi bi-server"></i>
+                </div>
+                <h5 class="mb-2">Configuración del Sistema</h5>
+                <p class="text-muted mb-3">Configuraciones avanzadas del sistema, mantenimiento y logs.</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge badge-status bg-info">Sistema</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Respaldo y Restauración -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <a href="{% url 'microcreditos:configuracion_backup' %}" class="config-card">
+            <div class="config-section h-100">
+                <div class="section-icon">
+                    <i class="bi bi-download"></i>
+                </div>
+                <h5 class="mb-2">Respaldo y Restauración</h5>
+                <p class="text-muted mb-3">Genera respaldos de la base de datos y restaura información cuando sea necesario.</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge badge-status bg-warning">Backup</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Reportes y Análisis -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <a href="{% url 'microcreditos:reportes' %}" class="config-card">
+            <div class="config-section h-100">
+                <div class="section-icon">
+                    <i class="bi bi-bar-chart"></i>
+                </div>
+                <h5 class="mb-2">Reportes y Análisis</h5>
+                <p class="text-muted mb-3">Genera reportes del sistema, análisis de cartera y estadísticas financieras.</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="badge badge-status bg-danger">Reportes</span>
+                    <i class="bi bi-arrow-right text-muted"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Configuración de Notificaciones -->
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="config-section h-100">
+            <div class="section-icon">
+                <i class="bi bi-bell"></i>
+            </div>
+            <h5 class="mb-2">Notificaciones</h5>
+            <p class="text-muted mb-3">Configura alertas automáticas, recordatorios de pagos y notificaciones del sistema.</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="badge badge-status bg-secondary">Próximamente</span>
+                <i class="bi bi-lock text-muted"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Acciones Rápidas -->
+<div class="config-section">
+    <h5 class="mb-3">
+        <i class="bi bi-lightning me-2"></i>Acciones Rápidas
+    </h5>
+    <div class="row">
+        <div class="col-md-3 mb-2">
+            <a href="{% url 'microcreditos:crear_configuracion_credito' %}" class="btn btn-outline-primary w-100">
+                <i class="bi bi-plus me-2"></i>Nueva Configuración
+            </a>
+        </div>
+        <div class="col-md-3 mb-2">
+            <a href="{% url 'microcreditos:crear_usuario' %}" class="btn btn-outline-success w-100">
+                <i class="bi bi-person-plus me-2"></i>Nuevo Usuario
+            </a>
+        </div>
+        <div class="col-md-3 mb-2">
+            <a href="{% url 'microcreditos:generar_reporte' %}" class="btn btn-outline-info w-100">
+                <i class="bi bi-file-text me-2"></i>Generar Reporte
+            </a>
+        </div>
+        <div class="col-md-3 mb-2">
+            <a href="{% url 'microcreditos:configuracion_backup' %}" class="btn btn-outline-warning w-100">
+                <i class="bi bi-download me-2"></i>Crear Backup
+            </a>
+        </div>
+    </div>
+</div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre_empresa" class="form-label">Nombre de la Empresa</label>
+                                <input type="text" class="form-control" id="nombre_empresa" name="nombre_empresa" value="YaPresto">
+                            </div>
+                            <div class="mb-3">
+                                <label for="direccion" class="form-label">Dirección</label>
+                                <textarea class="form-control" id="direccion" name="direccion" rows="3">Av. Principal #123, Ciudad</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="telefono" class="form-label">Teléfono</label>
+                                <input type="tel" class="form-control" id="telefono" name="telefono" value="+1 234 567 8900">
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" value="info@yapresto.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="moneda" class="form-label">Moneda</label>
+                                <select class="form-select" id="moneda" name="moneda">
+                                    <option value="USD" selected>Dólar Americano (USD)</option>
+                                    <option value="EUR">Euro (EUR)</option>
+                                    <option value="COP">Peso Colombiano (COP)</option>
+                                    <option value="MXN">Peso Mexicano (MXN)</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="timezone" class="form-label">Zona Horaria</label>
+                                <select class="form-select" id="timezone" name="timezone">
+                                    <option value="America/Lima" selected>America/Lima</option>
+                                    <option value="America/Bogota">America/Bogota</option>
+                                    <option value="America/Mexico_City">America/Mexico_City</option>
+                                    <option value="UTC">UTC</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="idioma" class="form-label">Idioma</label>
+                                <select class="form-select" id="idioma" name="idioma">
+                                    <option value="es" selected>Español</option>
+                                    <option value="en">English</option>
+                                    <option value="pt">Português</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="notificaciones_email" checked>
+                                    <label class="form-check-label" for="notificaciones_email">
+                                        Enviar notificaciones por email
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="" id="backup_automatico" checked>
+                                    <label class="form-check-label" for="backup_automatico">
+                                        Respaldo automático diario
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Guardar Configuración
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

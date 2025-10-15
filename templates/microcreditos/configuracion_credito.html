@@ -1,0 +1,261 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}Configuración de Créditos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-card {
+        transition: all 0.3s ease;
+        border-left: 4px solid #e9ecef;
+    }
+    .config-card.active {
+        border-left-color: #28a745;
+        background-color: #f8fff9;
+    }
+    .config-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .interes-badge {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    .config-actions {
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .config-card:hover .config-actions {
+        opacity: 1;
+    }
+    .stats-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="fas fa-cog me-2"></i>{{ titulo }}
+        </h1>
+        <p class="text-muted mb-0">Gestión de configuraciones de crédito del sistema</p>
+    </div>
+    <a href="{% url 'microcreditos:crear_configuracion_credito' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i>Nueva Configuración
+    </a>
+</div>
+
+    <!-- Estadísticas -->
+    <div class="stats-container">
+        <div class="row">
+            <div class="col-md-3 text-center">
+                <h3 class="mb-1">{{ total_configuraciones }}</h3>
+                <p class="mb-0">Total Configuraciones</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="mb-1">{{ configuraciones|length }}</h3>
+                <p class="mb-0">Configuraciones Disponibles</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="mb-1">
+                    {% if configuracion_activa %}1{% else %}0{% endif %}
+                </h3>
+                <p class="mb-0">Configuración Activa</p>
+            </div>
+            <div class="col-md-3 text-center">
+                <h3 class="mb-1">
+                    {% if configuracion_activa %}{{ configuracion_activa.interes_anual }}%{% else %}N/A{% endif %}
+                </h3>
+                <p class="mb-0">Interés Actual</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Configuraciones -->
+    <div class="row">
+        {% for config in configuraciones %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card config-card h-100 {% if config.activa %}active{% endif %}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        {{ config.nombre }}
+                        {% if config.activa %}
+                        <span class="badge bg-success ms-2">Activa</span>
+                        {% endif %}
+                    </h5>
+                    <div class="config-actions">
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'microcreditos:detalle_configuracion_credito' config.id %}">
+                                        <i class="fas fa-eye me-2"></i>Ver Detalles
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'microcreditos:editar_configuracion_credito' config.id %}">
+                                        <i class="fas fa-edit me-2"></i>Editar
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <button class="dropdown-item toggle-config" 
+                                            data-config-id="{{ config.id }}" 
+                                            data-active="{{ config.activa|yesno:'true,false' }}">
+                                        {% if config.activa %}
+                                        <i class="fas fa-toggle-off me-2"></i>Desactivar
+                                        {% else %}
+                                        <i class="fas fa-toggle-on me-2"></i>Activar
+                                        {% endif %}
+                                    </button>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{% url 'microcreditos:eliminar_configuracion_credito' config.id %}">
+                                        <i class="fas fa-trash me-2"></i>Eliminar
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    {% if config.descripcion %}
+                    <p class="text-muted small">{{ config.descripcion|truncatewords:15 }}</p>
+                    {% endif %}
+
+                    <!-- Información principal -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <span class="badge interes-badge bg-primary">{{ config.interes_anual }}%</span>
+                                <small class="d-block text-muted">Interés Anual</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <span class="badge interes-badge bg-info">{{ config.numero_periodos_defecto }}</span>
+                                <small class="d-block text-muted">Períodos Defecto</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rangos -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <small class="text-muted">
+                                <strong>Monto:</strong> ${{ config.monto_minimo|floatformat:0 }} - ${{ config.monto_maximo|floatformat:0 }}
+                            </small>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted">
+                                <strong>Períodos:</strong> {{ config.periodos_minimos }} - {{ config.periodos_maximos }} meses
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Tipo de cálculo -->
+                    <div class="mb-2">
+                        <span class="badge bg-secondary">{{ config.get_tipo_calculo_display }}</span>
+                        {% if config.pagos_extra_permitidos %}
+                        <span class="badge bg-success">Pagos Extra</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Metadatos -->
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        Actualizada {{ config.fecha_modificacion|timesince }} atrás
+                    </small>
+                </div>
+
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-6">
+                            <a href="{% url 'microcreditos:detalle_configuracion_credito' config.id %}" 
+                               class="btn btn-outline-primary btn-sm w-100">
+                                <i class="fas fa-eye me-1"></i>Ver
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'microcreditos:editar_configuracion_credito' config.id %}" 
+                               class="btn btn-outline-secondary btn-sm w-100">
+                                <i class="fas fa-edit me-1"></i>Editar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-cog fa-3x text-muted mb-3"></i>
+                    <h4>No hay configuraciones de crédito</h4>
+                    <p class="text-muted">Crea la primera configuración para comenzar a gestionar los parámetros de crédito del sistema.</p>
+                    <a href="{% url 'microcreditos:crear_configuracion_credito' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Crear Primera Configuración
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Manejar activación/desactivación de configuraciones
+    $('.toggle-config').click(function() {
+        const configId = $(this).data('config-id');
+        const isActive = $(this).data('active') === 'true';
+        const newActive = !isActive;
+        
+        // Confirmar la acción
+        const action = newActive ? 'activar' : 'desactivar';
+        if (!confirm(`¿Está seguro de ${action} esta configuración?`)) {
+            return;
+        }
+        
+        // Enviar solicitud AJAX
+        $.post(`/configuracion/creditos/${configId}/activar/`, {
+            'activa': newActive ? 'true' : 'false',
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+        })
+        .done(function(data) {
+            if (data.success) {
+                location.reload(); // Recargar para mostrar cambios
+            } else {
+                alert('Error: ' + (data.error || 'No se pudo completar la acción'));
+            }
+        })
+        .fail(function() {
+            alert('Error de conexión. Intente nuevamente.');
+        });
+    });
+    
+    // Animaciones mejoradas para las tarjetas
+    $('.config-card').hover(
+        function() {
+            $(this).find('.config-actions').css('opacity', '1');
+        },
+        function() {
+            $(this).find('.config-actions').css('opacity', '0');
+        }
+    );
+});
+</script>
+{% endblock %}

@@ -1,0 +1,321 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Mensajes Internos - {{ cliente.nombre_completo }} - YaPresto{% endblock %}
+{% block page_title %}Mensajes Internos{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:lista_clientes' %}">Clientes</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:detalle_cliente' cliente.id %}">{{ cliente.nombre_completo }}</a></li>
+                <li class="breadcrumb-item active">Mensajes Internos</li>
+            </ol>
+        </nav>
+
+        <!-- Header con información del cliente -->
+        <div class="card border-primary mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="bi bi-chat-left-text me-2"></i>
+                            Mensajes Internos - {{ cliente.nombre_completo }}
+                        </h5>
+                        <small>Comunicación interna y seguimiento del cliente</small>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-light text-primary">{{ stats.total }} mensaje{{ stats.total|pluralize:"s" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Cliente:</strong> {{ cliente.nombre_completo }}</p>
+                        <p class="mb-1"><strong>Cédula:</strong> {{ cliente.cedula }}</p>
+                        <p class="mb-0"><strong>Estado:</strong> 
+                            <span class="badge bg-{% if cliente.estado == 'activo' %}success{% elif cliente.estado == 'moroso' %}danger{% else %}secondary{% endif %}">
+                                {{ cliente.get_estado_display }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Email:</strong> {{ cliente.email }}</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> {{ cliente.telefono }}</p>
+                        <p class="mb-0"><strong>Registro:</strong> {{ cliente.fecha_registro|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary">{{ stats.total }}</h3>
+                        <p class="mb-0">Total</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-warning">{{ stats.pendientes }}</h3>
+                        <p class="mb-0">Pendientes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success">{{ stats.completados }}</h3>
+                        <p class="mb-0">Completados</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-danger">{{ stats.necesitan_seguimiento }}</h3>
+                        <p class="mb-0">Seguimiento</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros y acciones -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Tipo</label>
+                        {{ filtro_form.tipo }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Prioridad</label>
+                        {{ filtro_form.prioridad }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Estado</label>
+                        {{ filtro_form.estado }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Desde</label>
+                        {{ filtro_form.fecha_desde }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Hasta</label>
+                        {{ filtro_form.fecha_hasta }}
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-outline-primary me-2">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <a href="{% url 'microcreditos:cliente_mensajes_internos' cliente.id %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{% url 'microcreditos:detalle_cliente' cliente.id %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Volver al Cliente
+                </a>
+                <a href="{% url 'microcreditos:cliente_adjuntos' cliente.id %}" class="btn btn-outline-info">
+                    <i class="bi bi-paperclip me-2"></i>Adjuntos
+                </a>
+            </div>
+            <a href="{% url 'microcreditos:crear_mensaje_interno_cliente' cliente.id %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-2"></i>Nuevo Mensaje
+            </a>
+        </div>
+
+        <!-- Lista de mensajes -->
+        {% if mensajes %}
+            {% for mensaje in mensajes %}
+            <div class="card mb-3 {% if mensaje.necesita_seguimiento %}border-warning{% elif mensaje.prioridad == 'urgente' %}border-danger{% elif mensaje.prioridad == 'alta' %}border-warning{% endif %}">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="mb-0">{{ mensaje.titulo }}</h6>
+                            <small class="text-muted">
+                                Por {{ mensaje.creado_por.get_full_name|default:mensaje.creado_por.username }} 
+                                - {{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-auto">
+                            <!-- Badges de estado -->
+                            <span class="badge bg-{% if mensaje.tipo == 'urgente' %}danger{% elif mensaje.tipo == 'seguimiento' %}warning{% elif mensaje.tipo == 'nota' %}info{% else %}secondary{% endif %}">
+                                {{ mensaje.get_tipo_display }}
+                            </span>
+                            <span class="badge bg-{% if mensaje.prioridad == 'urgente' %}danger{% elif mensaje.prioridad == 'alta' %}warning{% elif mensaje.prioridad == 'media' %}info{% else %}secondary{% endif %}">
+                                {{ mensaje.get_prioridad_display }}
+                            </span>
+                            {% if mensaje.completado %}
+                                <span class="badge bg-success">Completado</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pendiente</span>
+                            {% endif %}
+                            {% if mensaje.es_privado %}
+                                <span class="badge bg-dark">Privado</span>
+                            {% endif %}
+                            {% if mensaje.necesita_seguimiento %}
+                                <span class="badge bg-danger">Requiere Seguimiento</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">{{ mensaje.mensaje|linebreaks }}</p>
+                    
+                    {% if mensaje.fecha_seguimiento %}
+                    <div class="alert alert-info small">
+                        <i class="bi bi-calendar-event me-1"></i>
+                        <strong>Seguimiento programado:</strong> {{ mensaje.fecha_seguimiento|date:"d/m/Y H:i" }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if mensaje.completado %}
+                    <div class="alert alert-success small">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <strong>Completado</strong> por {{ mensaje.completado_por.get_full_name|default:mensaje.completado_por.username }} 
+                        el {{ mensaje.fecha_completado|date:"d/m/Y H:i" }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group btn-group-sm" role="group">
+                        {% if not mensaje.completado %}
+                        <a href="{% url 'microcreditos:marcar_completado_mensaje' mensaje.id %}" 
+                           class="btn btn-outline-success"
+                           onclick="return confirm('¿Marcar como completado?')">
+                            <i class="bi bi-check-circle"></i> Completar
+                        </a>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-info" 
+                                data-bs-toggle="modal" data-bs-target="#detailModal{{ mensaje.id }}">
+                            <i class="bi bi-eye"></i> Ver Detalle
+                        </button>
+                        <a href="{% url 'microcreditos:eliminar_mensaje_interno' mensaje.id %}" 
+                           class="btn btn-outline-danger"
+                           onclick="return confirm('¿Estás seguro de eliminar este mensaje?')">
+                            <i class="bi bi-trash"></i> Eliminar
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal con detalle del mensaje -->
+            <div class="modal fade" id="detailModal{{ mensaje.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ mensaje.titulo }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <dl class="row">
+                                <dt class="col-sm-3">Tipo:</dt>
+                                <dd class="col-sm-9">{{ mensaje.get_tipo_display }}</dd>
+                                
+                                <dt class="col-sm-3">Prioridad:</dt>
+                                <dd class="col-sm-9">
+                                    <span class="badge bg-{% if mensaje.prioridad == 'urgente' %}danger{% elif mensaje.prioridad == 'alta' %}warning{% elif mensaje.prioridad == 'media' %}info{% else %}secondary{% endif %}">
+                                        {{ mensaje.get_prioridad_display }}
+                                    </span>
+                                </dd>
+                                
+                                <dt class="col-sm-3">Creado por:</dt>
+                                <dd class="col-sm-9">{{ mensaje.creado_por.get_full_name|default:mensaje.creado_por.username }}</dd>
+                                
+                                <dt class="col-sm-3">Fecha:</dt>
+                                <dd class="col-sm-9">{{ mensaje.fecha_creacion|date:"d/m/Y H:i" }}</dd>
+                                
+                                <dt class="col-sm-3">Estado:</dt>
+                                <dd class="col-sm-9">
+                                    {% if mensaje.completado %}
+                                        <span class="badge bg-success">Completado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Pendiente</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                {% if mensaje.fecha_seguimiento %}
+                                <dt class="col-sm-3">Seguimiento:</dt>
+                                <dd class="col-sm-9">{{ mensaje.fecha_seguimiento|date:"d/m/Y H:i" }}</dd>
+                                {% endif %}
+                                
+                                <dt class="col-sm-3">Mensaje:</dt>
+                                <dd class="col-sm-9">{{ mensaje.mensaje|linebreaks }}</dd>
+                            </dl>
+                        </div>
+                        <div class="modal-footer">
+                            {% if not mensaje.completado %}
+                            <a href="{% url 'microcreditos:marcar_completado_mensaje' mensaje.id %}" 
+                               class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>Completar
+                            </a>
+                            {% endif %}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Paginación -->
+            {% if mensajes.has_other_pages %}
+            <nav aria-label="Paginación de mensajes">
+                <ul class="pagination justify-content-center">
+                    {% if mensajes.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ mensajes.previous_page_number }}">Anterior</a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for num in mensajes.paginator.page_range %}
+                        {% if mensajes.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if mensajes.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ mensajes.next_page_number }}">Siguiente</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        {% else %}
+            <!-- Estado vacío -->
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-chat-left-text display-1 text-muted"></i>
+                </div>
+                <h4 class="text-muted">No hay mensajes internos</h4>
+                <p class="text-muted">Este cliente aún no tiene mensajes internos registrados.</p>
+                <a href="{% url 'microcreditos:crear_mensaje_interno_cliente' cliente.id %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-2"></i>Crear Primer Mensaje
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

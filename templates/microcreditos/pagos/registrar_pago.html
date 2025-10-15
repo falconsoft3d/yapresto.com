@@ -1,0 +1,599 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Registrar Pago - YaPresto{% endblock %}
+{% block page_title %}Registrar Pago de Crédito{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .form-step {
+        padding: 40px;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .step-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e9ecef;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin: 0 10px;
+        position: relative;
+    }
+    
+    .step-circle.active {
+        background: #007bff;
+        color: white;
+    }
+    
+    .step-circle.completed {
+        background: #28a745;
+        color: white;
+    }
+    
+    .step-line {
+        width: 100px;
+        height: 2px;
+        background: #e9ecef;
+    }
+    
+    .step-line.active {
+        background: #007bff;
+    }
+    
+    .form-group {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #495057;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+        padding: 12px 15px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+    }
+    
+    .btn {
+        border-radius: 10px;
+        padding: 12px 30px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+        border: none;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        border: none;
+    }
+    
+    .credit-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+    }
+    
+    .info-value {
+        color: #495057;
+    }
+    
+    .payment-summary {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-top: 30px;
+    }
+    
+    .hidden {
+        display: none;
+    }
+    
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="form-container">
+    <!-- Header -->
+    <div class="form-header">
+        <h2><i class="bi bi-credit-card me-3"></i>Registrar Pago</h2>
+        <p class="mb-0">Procesa el pago de cuotas de crédito</p>
+    </div>
+    
+    <!-- Indicador de pasos -->
+    <div class="form-step">
+        <div class="step-indicator">
+            <div class="step-circle active" id="step1-circle">1</div>
+            <div class="step-line" id="step1-line"></div>
+            <div class="step-circle" id="step2-circle">2</div>
+        </div>
+        
+        <form method="post" id="payment-form">
+            {% csrf_token %}
+            
+            <!-- Paso 1: Datos del Pago -->
+            <div id="step1" class="step-content">
+                <h4 class="text-center mb-4">Datos del Pago</h4>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Cliente:</label>
+                            {{ form.cliente }}
+                            <div class="form-text">Selecciona el cliente que realizará el pago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Crédito:</label>
+                            {{ form.prestamo }}
+                            <div class="form-text">Crédito al que se aplicará el pago</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Monto a Pagar:</label>
+                            <div class="input-group">
+                                {{ form.monto_pagado }}
+                                <button type="button" class="btn btn-outline-primary" id="btn-cuota-mensual" onclick="cargarCuotaMensual()" title="Cargar cuota mensual">
+                                    <i class="bi bi-calculator"></i> Cuota
+                                </button>
+                            </div>
+                            <div class="form-text">Cantidad que está pagando el cliente</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Diario:</label>
+                            {{ form.diario }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Referencia (Opcional):</label>
+                            {{ form.referencia }}
+                            <div class="form-text">Número de cheque, referencia de transferencia, etc.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Observaciones (Opcional):</label>
+                            {{ form.observaciones }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Información del crédito -->
+                <div id="credit-info" class="credit-info hidden">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-primary btn-lg" id="btn-next" disabled>
+                        <i class="bi bi-arrow-right me-2"></i>Siguiente
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Paso 2: Confirmación y Aplicación -->
+            <div id="step2" class="step-content hidden">
+                <h4 class="text-center mb-4">Confirmación del Pago</h4>
+                
+                <div id="payment-details">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                
+                <div id="payment-distribution">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-secondary me-3" id="btn-back">
+                        <i class="bi bi-arrow-left me-2"></i>Volver
+                    </button>
+                    <button type="submit" class="btn btn-success btn-lg" id="btn-confirm">
+                        <i class="bi bi-check-circle me-2"></i>Confirmar Pago
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de procesando -->
+<div class="modal fade" id="processingModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="loading mb-3"></div>
+                <h5>Procesando Pago...</h5>
+                <p class="text-muted mb-0">Por favor espere</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+let creditData = null;
+let amortizationTable = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    setupEventListeners();
+});
+
+function initializeForm() {
+    // Configurar fecha por defecto (hoy)
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Agregar validaciones en tiempo real
+    validateStep1();
+}
+
+function setupEventListeners() {
+    // Cambio de cliente
+    document.getElementById('id_cliente').addEventListener('change', function() {
+        loadClientCredits(this.value);
+        validateStep1();
+    });
+    
+    // Cambio de crédito
+    document.getElementById('id_prestamo').addEventListener('change', function() {
+        loadCreditInfo(this.value);
+        validateStep1();
+    });
+    
+    // Cambio de monto
+    document.getElementById('id_monto_pagado').addEventListener('input', validateStep1);
+    
+    // Botón siguiente
+    document.getElementById('btn-next').addEventListener('click', goToStep2);
+    
+    // Botón volver
+    document.getElementById('btn-back').addEventListener('click', goToStep1);
+    
+    // Envío del formulario
+    document.getElementById('payment-form').addEventListener('submit', handleSubmit);
+}
+
+function loadClientCredits(clientId) {
+    if (!clientId) {
+        document.getElementById('id_prestamo').innerHTML = '<option value="">Seleccione un crédito...</option>';
+        return;
+    }
+    
+    fetch(`{% url 'microcreditos:obtener_creditos_cliente' 0 %}`.replace('0', clientId))
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('id_prestamo');
+            select.innerHTML = '<option value="">Seleccione un crédito...</option>';
+            
+            if (data.success && data.creditos.length > 0) {
+                data.creditos.forEach(credito => {
+                    const option = document.createElement('option');
+                    option.value = credito.id;
+                    option.textContent = credito.texto;
+                    select.appendChild(option);
+                });
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No hay créditos activos';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al cargar créditos del cliente');
+        });
+}
+
+function loadCreditInfo(creditId) {
+    if (!creditId) {
+        document.getElementById('credit-info').classList.add('hidden');
+        return;
+    }
+    
+    fetch(`{% url 'microcreditos:obtener_tabla_pagos' 0 %}`.replace('0', creditId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                creditData = data.info_credito;
+                amortizationTable = data.tabla_pagos;
+                showCreditInfo(creditData);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function showCreditInfo(info) {
+    const container = document.getElementById('credit-info');
+    container.innerHTML = `
+        <h6><i class="bi bi-info-circle me-2"></i>Información del Crédito</h6>
+        <div class="info-row">
+            <span class="info-label">Monto Original:</span>
+            <span class="info-value">$${info.monto.toFixed(2)}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Cuota Mensual:</span>
+            <span class="info-value">$${info.cuota_mensual.toFixed(2)}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Plazo:</span>
+            <span class="info-value">${info.plazo_meses} meses</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Saldo Pendiente:</span>
+            <span class="info-value text-danger">$${info.saldo_pendiente.toFixed(2)}</span>
+        </div>
+    `;
+    container.classList.remove('hidden');
+}
+
+function validateStep1() {
+    const cliente = document.getElementById('id_cliente').value;
+    const prestamo = document.getElementById('id_prestamo').value;
+    const monto = document.getElementById('id_monto_pagado').value;
+    const diario = document.getElementById('id_diario').value;
+    
+    const isValid = cliente && prestamo && monto && parseFloat(monto) > 0 && diario;
+    document.getElementById('btn-next').disabled = !isValid;
+}
+
+function goToStep2() {
+    if (!validateStep1()) return;
+    
+    // Preparar datos para el paso 2
+    const cliente = document.getElementById('id_cliente');
+    const prestamo = document.getElementById('id_prestamo');
+    const monto = parseFloat(document.getElementById('id_monto_pagado').value);
+    const diario = document.getElementById('id_diario');
+    
+    // Mostrar detalles del pago
+    const paymentDetails = document.getElementById('payment-details');
+    paymentDetails.innerHTML = `
+        <div class="payment-summary">
+            <h5><i class="bi bi-receipt me-2"></i>Resumen del Pago</h5>
+            <div class="info-row">
+                <span>Cliente:</span>
+                <span>${cliente.options[cliente.selectedIndex].text}</span>
+            </div>
+            <div class="info-row">
+                <span>Crédito:</span>
+                <span>${prestamo.options[prestamo.selectedIndex].text}</span>
+            </div>
+            <div class="info-row">
+                <span>Monto:</span>
+                <span><strong>$${monto.toFixed(2)}</strong></span>
+            </div>
+            <div class="info-row">
+                <span>Diario:</span>
+                <span>${diario.options[diario.selectedIndex].text}</span>
+            </div>
+        </div>
+    `;
+    
+    // Calcular distribución del pago
+    calculatePaymentDistribution(monto);
+    
+    // Cambiar a paso 2
+    currentStep = 2;
+    updateStepIndicator();
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('step2').classList.remove('hidden');
+}
+
+function calculatePaymentDistribution(montoPagado) {
+    let montoRestante = montoPagado;
+    let cuotasPagadas = [];
+    
+    // Ordenar cuotas por fecha de vencimiento
+    const cuotasOrdenadas = [...amortizationTable].sort((a, b) => 
+        new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento)
+    );
+    
+    // Aplicar pago a cuotas pendientes
+    for (let cuota of cuotasOrdenadas) {
+        if (cuota.estado !== 'completado' && montoRestante > 0) {
+            const montoAplicado = Math.min(montoRestante, cuota.cuota);
+            cuotasPagadas.push({
+                ...cuota,
+                monto_aplicado: montoAplicado
+            });
+            montoRestante -= montoAplicado;
+        }
+    }
+    
+    // Mostrar distribución
+    const distributionContainer = document.getElementById('payment-distribution');
+    
+    if (cuotasPagadas.length > 0) {
+        let html = `
+            <h6 class="mt-4"><i class="bi bi-list-check me-2"></i>Cuotas a Pagar</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Cuota</th>
+                            <th>Vencimiento</th>
+                            <th>Monto Cuota</th>
+                            <th>Aplicar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        cuotasPagadas.forEach(cuota => {
+            html += `
+                <tr>
+                    <td><span class="badge bg-primary">${cuota.numero_cuota}</span></td>
+                    <td>${cuota.fecha_vencimiento}</td>
+                    <td>$${cuota.cuota.toFixed(2)}</td>
+                    <td class="text-success"><strong>$${cuota.monto_aplicado.toFixed(2)}</strong></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        if (montoRestante > 0) {
+            html += `
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Cambio/Excedente: <strong>$${montoRestante.toFixed(2)}</strong>
+                </div>
+            `;
+        }
+        
+        distributionContainer.innerHTML = html;
+    } else {
+        distributionContainer.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No hay cuotas pendientes para aplicar el pago.
+            </div>
+        `;
+    }
+}
+
+function goToStep1() {
+    currentStep = 1;
+    updateStepIndicator();
+    document.getElementById('step2').classList.add('hidden');
+    document.getElementById('step1').classList.remove('hidden');
+}
+
+function updateStepIndicator() {
+    const step1Circle = document.getElementById('step1-circle');
+    const step2Circle = document.getElementById('step2-circle');
+    const stepLine = document.getElementById('step1-line');
+    
+    if (currentStep === 1) {
+        step1Circle.classList.add('active');
+        step1Circle.classList.remove('completed');
+        step2Circle.classList.remove('active');
+        stepLine.classList.remove('active');
+    } else {
+        step1Circle.classList.remove('active');
+        step1Circle.classList.add('completed');
+        step2Circle.classList.add('active');
+        stepLine.classList.add('active');
+    }
+}
+
+function handleSubmit(e) {
+    e.preventDefault();
+    
+    // Mostrar modal de procesando
+    const modal = new bootstrap.Modal(document.getElementById('processingModal'));
+    modal.show();
+    
+    // Enviar formulario
+    setTimeout(() => {
+        e.target.submit();
+    }, 1000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrarse - YaPresto{% endblock %}
+
+{% block content %}
+<div class="container-fluid vh-100">
+    <div class="row h-100">
+        <!-- Left side - Info Panel -->
+        <div class="col-lg-6 bg-primary d-none d-lg-flex align-items-center justify-content-center text-white">
+            <div class="text-center p-5">
+                <i class="bi bi-bank display-1 mb-4"></i>
+                <h2 class="fw-bold mb-4">Únete a YaPresto</h2>
+                <p class="lead mb-4">
+                    Accede a la mejor plataforma de microcréditos. 
+                    Gestiona tus finanzas de manera inteligente y segura.
+                </p>
+                <div class="row text-center mt-5">
+                    <div class="col-4">
+                        <i class="bi bi-shield-check display-4 mb-2"></i>
+                        <h5>Seguro</h5>
+                        <small>100% Protegido</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-lightning-charge display-4 mb-2"></i>
+                        <h5>Rápido</h5>
+                        <small>Aprobación inmediata</small>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-percent display-4 mb-2"></i>
+                        <h5>Económico</h5>
+                        <small>Mejores tasas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right side - Registration Form -->
+        <div class="col-lg-6 d-flex align-items-center justify-content-center">
+            <div class="card shadow-lg border-0" style="width: 100%; max-width: 400px;">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h3 class="fw-bold text-primary">Crear Cuenta</h3>
+                        <p class="text-muted">Completa los datos para registrarte</p>
+                    </div>
+                    
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="id_username" class="form-label">Usuario *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-person"></i>
+                                </span>
+                                {{ form.username }}
+                            </div>
+                            {% if form.username.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.username.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_password1" class="form-label">Contraseña *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock"></i>
+                                </span>
+                                {{ form.password1 }}
+                            </div>
+                            {% if form.password1.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.password1.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="id_password2" class="form-label">Confirmar Contraseña *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-lock-fill"></i>
+                                </span>
+                                {{ form.password2 }}
+                            </div>
+                            {% if form.password2.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.password2.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-person-plus me-2"></i>Crear Cuenta
+                            </button>
+                        </div>
+                        
+                        <div class="text-center">
+                            <p class="text-muted">
+                                ¿Ya tienes cuenta? 
+                                <a href="{% url 'accounts:login' %}" class="text-primary text-decoration-none">
+                                    Inicia sesión aquí
+                                </a>
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

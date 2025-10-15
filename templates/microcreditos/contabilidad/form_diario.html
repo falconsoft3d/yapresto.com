@@ -1,0 +1,244 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}{{ titulo }} - YaPresto{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block dashboard_content %}
+<!-- Breadcrumb y botón volver -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'microcreditos:dashboard' %}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'microcreditos:lista_diarios' %}">Diarios</a>
+            </li>
+            <li class="breadcrumb-item active">{{ titulo }}</li>
+        </ol>
+    </nav>
+    <a href="{% url 'microcreditos:lista_diarios' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Volver al Listado
+    </a>
+</div>
+
+    <!-- Formulario -->
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-edit me-2"></i>Información del Diario
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Nombre del Diario -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                                    Nombre del Diario <span class="text-danger">*</span>
+                                </label>
+                                {{ form.nombre }}
+                                {% if form.nombre.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.nombre.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    Nombre descriptivo para identificar el diario (ej: Efectivo, Banco Central, Tarjeta de Crédito)
+                                </div>
+                            </div>
+
+                            <!-- Código del Diario -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.codigo.id_for_label }}" class="form-label">
+                                    Código <span class="text-danger">*</span>
+                                </label>
+                                {{ form.codigo }}
+                                {% if form.codigo.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.codigo.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    {{ form.codigo.help_text }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Descripción -->
+                        <div class="mb-3">
+                            <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                                Descripción
+                            </label>
+                            {{ form.descripcion }}
+                            {% if form.descripcion.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.descripcion.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Descripción detallada opcional del propósito del diario
+                            </div>
+                        </div>
+
+                        <!-- Estado Activo -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                {{ form.activo }}
+                                <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+                                    Diario activo
+                                </label>
+                                {% if form.activo.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.activo.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    {{ form.activo.help_text }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de acción -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>{{ accion }} Diario
+                                </button>
+                                <a href="{% url 'microcreditos:lista_diarios' %}" class="btn btn-secondary ms-2">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </a>
+                            </div>
+                            
+                            {% if diario %}
+                            <div>
+                                <a href="{% url 'microcreditos:detalle_diario' diario.pk %}" class="btn btn-info">
+                                    <i class="fas fa-eye me-2"></i>Ver Detalles
+                                </a>
+                                <a href="{% url 'microcreditos:eliminar_diario' diario.pk %}" 
+                                   class="btn btn-danger ms-2"
+                                   onclick="return confirm('¿Está seguro de eliminar este diario?')">
+                                    <i class="fas fa-trash me-2"></i>Eliminar
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información Adicional -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-info-circle me-2"></i>Información sobre Diarios
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold">¿Qué son los Diarios?</h6>
+                            <p class="text-muted small">
+                                Los diarios contables son libros donde se registran cronológicamente todas las transacciones 
+                                financieras de la empresa. Cada diario representa una categoría específica de movimientos.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="font-weight-bold">Ejemplos de Diarios:</h6>
+                            <ul class="text-muted small">
+                                <li><strong>EFE:</strong> Efectivo - Movimientos en dinero en efectivo</li>
+                                <li><strong>BCO:</strong> Banco - Movimientos bancarios</li>
+                                <li><strong>TJT:</strong> Tarjeta - Pagos con tarjeta de crédito/débito</li>
+                                <li><strong>CHQ:</strong> Cheques - Pagos y cobros con cheques</li>
+                                <li><strong>TRF:</strong> Transferencias - Transferencias bancarias</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-generar código basado en el nombre
+    const nombreField = document.getElementById('{{ form.nombre.id_for_label }}');
+    const codigoField = document.getElementById('{{ form.codigo.id_for_label }}');
+    
+    if (nombreField && codigoField && !codigoField.value) {
+        nombreField.addEventListener('input', function() {
+            const nombre = this.value.trim();
+            if (nombre.length > 0) {
+                // Generar código automáticamente
+                let codigo = '';
+                const palabras = nombre.split(' ');
+                
+                if (palabras.length === 1) {
+                    // Una sola palabra - tomar las primeras 3 letras
+                    codigo = palabras[0].substring(0, 3).toUpperCase();
+                } else {
+                    // Múltiples palabras - tomar primera letra de cada palabra
+                    palabras.forEach(palabra => {
+                        if (palabra.length > 0) {
+                            codigo += palabra.charAt(0).toUpperCase();
+                        }
+                    });
+                    // Limitar a 5 caracteres máximo
+                    codigo = codigo.substring(0, 5);
+                }
+                
+                codigoField.value = codigo;
+            }
+        });
+    }
+    
+    // Validación en tiempo real
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Validar nombre
+        const nombre = nombreField.value.trim();
+        if (nombre.length < 2) {
+            showFieldError(nombreField, 'El nombre debe tener al menos 2 caracteres');
+            isValid = false;
+        }
+        
+        // Validar código
+        const codigo = codigoField.value.trim();
+        if (codigo.length < 2 || codigo.length > 20) {
+            showFieldError(codigoField, 'El código debe tener entre 2 y 20 caracteres');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+        }
+    });
+});
+
+function showFieldError(field, message) {
+    // Limpiar errores anteriores
+    const existingError = field.parentNode.querySelector('.invalid-feedback');
+    if (existingError) {
+        existingError.remove();
+    }
+    
+    // Agregar clase de error
+    field.classList.add('is-invalid');
+    
+    // Crear mensaje de error
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'invalid-feedback d-block';
+    errorDiv.textContent = message;
+    field.parentNode.appendChild(errorDiv);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Mi Perfil - YaPresto{% endblock %}
+{% block page_title %}Mi Perfil{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-circle me-2"></i>
+                        Mi Perfil
+                    </h5>
+                    <small>Información personal y configuración de cuenta</small>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:editar_perfil' %}" class="btn btn-light btn-sm me-2">
+                        <i class="bi bi-pencil me-2"></i>Editar Perfil
+                    </a>
+                    <a href="{% url 'accounts:cambiar_password' %}" class="btn btn-outline-light btn-sm">
+                        <i class="bi bi-lock me-2"></i>Cambiar Contraseña
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Información básica -->
+                    <div class="col-md-4">
+                        <div class="text-center mb-4">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-3" style="width: 120px; height: 120px; font-size: 48px;">
+                                {{ user.first_name|first|default:user.username|first|upper }}{{ user.last_name|first|default:""|upper }}
+                            </div>
+                            <h4>{{ user.get_full_name|default:user.username }}</h4>
+                            <p class="text-muted">@{{ user.username }}</p>
+                            
+                            {% if user.perfil %}
+                                <span class="badge bg-{% if user.perfil.rol == 'administrador' %}danger{% elif user.perfil.rol == 'empleado' %}warning{% else %}secondary{% endif %} fs-6">
+                                    {{ user.perfil.get_rol_display }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Estado de cuenta -->
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">Estado de Cuenta</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Estado:</span>
+                                    <span class="badge bg-{% if user.is_active %}success{% else %}secondary{% endif %}">
+                                        {% if user.is_active %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Fecha de registro:</span>
+                                    <span>{{ user.date_joined|date:"d/m/Y" }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Último acceso:</span>
+                                    <span>
+                                        {% if user.last_login %}
+                                            {{ user.last_login|date:"d/m/Y H:i" }}
+                                        {% else %}
+                                            Nunca
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Información personal -->
+                    <div class="col-md-8">
+                        <h6 class="mb-3">Información Personal</h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Nombre de Usuario</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.username }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Email</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.email|default:"No especificado" }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Nombre</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.first_name|default:"No especificado" }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Apellido</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.last_name|default:"No especificado" }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if user.perfil %}
+                        <h6 class="mb-3 mt-4">Información Adicional</h6>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Cédula</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.perfil.cedula|default:"No especificado" }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Teléfono</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.perfil.telefono|default:"No especificado" }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Fecha de Nacimiento</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {% if user.perfil.fecha_nacimiento %}
+                                        {{ user.perfil.fecha_nacimiento|date:"d/m/Y" }}
+                                    {% else %}
+                                        No especificado
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-muted">Rol en el Sistema</label>
+                                <div class="form-control-plaintext bg-light rounded p-2">
+                                    {{ user.perfil.get_rol_display }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Dirección</label>
+                            <div class="form-control-plaintext bg-light rounded p-2" style="min-height: 60px;">
+                                {{ user.perfil.direccion|default:"No especificado" }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Permisos del usuario -->
+                        <h6 class="mb-3 mt-4">Permisos y Accesos</h6>
+                        <div class="row">
+                            {% if user.perfil.es_administrador %}
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <h6><i class="bi bi-shield-check me-2"></i>Administrador del Sistema</h6>
+                                    <ul class="mb-0">
+                                        <li>Acceso completo al sistema</li>
+                                        <li>Gestión de usuarios</li>
+                                        <li>Configuración del sistema</li>
+                                        <li>Todas las operaciones</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% elif user.perfil.es_empleado %}
+                            <div class="col-md-12">
+                                <div class="alert alert-warning">
+                                    <h6><i class="bi bi-briefcase me-2"></i>Empleado</h6>
+                                    <ul class="mb-0">
+                                        <li>Gestión de clientes y préstamos</li>
+                                        <li>Registro de pagos</li>
+                                        <li>Generación de reportes</li>
+                                        <li>Sin acceso a configuración</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-md-12">
+                                <div class="alert alert-secondary">
+                                    <h6><i class="bi bi-eye me-2"></i>Usuario</h6>
+                                    <ul class="mb-0">
+                                        <li>Visualización de datos</li>
+                                        <li>Consulta de reportes</li>
+                                        <li>Sin permisos de modificación</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                <div class="text-center">
+                    <p class="text-muted mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Si necesitas cambiar tu rol o tienes problemas con tu cuenta, contacta al administrador del sistema.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

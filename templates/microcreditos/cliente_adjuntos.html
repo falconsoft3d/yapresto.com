@@ -1,0 +1,188 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Adjuntos - {{ cliente.nombre_completo }} - YaPresto{% endblock %}
+{% block page_title %}Adjuntos de Cliente{% endblock %}
+
+{% block dashboard_content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:lista_clientes' %}">Clientes</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'microcreditos:detalle_cliente' cliente.id %}">{{ cliente.nombre_completo }}</a></li>
+                <li class="breadcrumb-item active">Adjuntos</li>
+            </ol>
+        </nav>
+
+        <!-- Header con información del cliente -->
+        <div class="card border-info mb-4">
+            <div class="card-header bg-info text-white">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="bi bi-paperclip me-2"></i>
+                            Adjuntos de {{ cliente.nombre_completo }}
+                        </h5>
+                        <small>Gestión de documentos y archivos del cliente</small>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-light text-info">{{ adjuntos|length }} archivo{{ adjuntos|length|pluralize:"s" }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Cliente:</strong> {{ cliente.nombre_completo }}</p>
+                        <p class="mb-1"><strong>Cédula:</strong> {{ cliente.cedula }}</p>
+                        <p class="mb-0"><strong>Estado:</strong> 
+                            <span class="badge bg-{% if cliente.estado == 'activo' %}success{% elif cliente.estado == 'moroso' %}danger{% else %}secondary{% endif %}">
+                                {{ cliente.get_estado_display }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Email:</strong> {{ cliente.email }}</p>
+                        <p class="mb-1"><strong>Teléfono:</strong> {{ cliente.telefono }}</p>
+                        <p class="mb-0"><strong>Registro:</strong> {{ cliente.fecha_registro|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{% url 'microcreditos:detalle_cliente' cliente.id %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Volver al Cliente
+                </a>
+                <a href="{% url 'microcreditos:cliente_mensajes_internos' cliente.id %}" class="btn btn-outline-info">
+                    <i class="bi bi-chat-left-text me-2"></i>Mensajes Internos
+                </a>
+            </div>
+            <a href="{% url 'microcreditos:subir_adjunto_cliente' cliente.id %}" class="btn btn-success">
+                <i class="bi bi-cloud-upload me-2"></i>Subir Adjunto
+            </a>
+        </div>
+
+        <!-- Lista de adjuntos -->
+        {% if adjuntos %}
+            <div class="row">
+                {% for adjunto in adjuntos %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="badge bg-primary">{{ adjunto.get_tipo_display }}</span>
+                            {% if adjunto.es_confidencial %}
+                                <i class="bi bi-lock-fill text-warning" title="Confidencial"></i>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title">{{ adjunto.titulo }}</h6>
+                            <p class="card-text text-muted small">
+                                {% if adjunto.descripcion %}
+                                    {{ adjunto.descripcion|truncatewords:15 }}
+                                {% else %}
+                                    Sin descripción
+                                {% endif %}
+                            </p>
+                            
+                            <!-- Información del archivo -->
+                            <div class="small text-muted mb-3">
+                                <div><i class="bi bi-file-earmark me-1"></i>{{ adjunto.nombre_archivo }}</div>
+                                <div><i class="bi bi-hdd me-1"></i>{{ adjunto.tamaño_legible }}</div>
+                                <div><i class="bi bi-calendar me-1"></i>{{ adjunto.fecha_subida|date:"d/m/Y H:i" }}</div>
+                                <div><i class="bi bi-person me-1"></i>{{ adjunto.subido_por.get_full_name|default:adjunto.subido_por.username }}</div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100" role="group">
+                                <a href="{% url 'microcreditos:descargar_adjunto_cliente' adjunto.id %}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-info btn-sm" 
+                                        data-bs-toggle="modal" data-bs-target="#infoModal{{ adjunto.id }}">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                                <a href="{% url 'microcreditos:eliminar_adjunto_cliente' adjunto.id %}" 
+                                   class="btn btn-outline-danger btn-sm"
+                                   onclick="return confirm('¿Estás seguro de eliminar este adjunto?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal con información detallada -->
+                <div class="modal fade" id="infoModal{{ adjunto.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">{{ adjunto.titulo }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <dl class="row">
+                                    <dt class="col-sm-4">Tipo:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.get_tipo_display }}</dd>
+                                    
+                                    <dt class="col-sm-4">Archivo:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.nombre_archivo }}</dd>
+                                    
+                                    <dt class="col-sm-4">Tamaño:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.tamaño_legible }}</dd>
+                                    
+                                    <dt class="col-sm-4">Fecha subida:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.fecha_subida|date:"d/m/Y H:i" }}</dd>
+                                    
+                                    <dt class="col-sm-4">Subido por:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.subido_por.get_full_name|default:adjunto.subido_por.username }}</dd>
+                                    
+                                    <dt class="col-sm-4">Confidencial:</dt>
+                                    <dd class="col-sm-8">
+                                        {% if adjunto.es_confidencial %}
+                                            <span class="badge bg-warning">Sí</span>
+                                        {% else %}
+                                            <span class="badge bg-success">No</span>
+                                        {% endif %}
+                                    </dd>
+                                    
+                                    {% if adjunto.descripcion %}
+                                    <dt class="col-sm-4">Descripción:</dt>
+                                    <dd class="col-sm-8">{{ adjunto.descripcion }}</dd>
+                                    {% endif %}
+                                </dl>
+                            </div>
+                            <div class="modal-footer">
+                                <a href="{% url 'microcreditos:descargar_adjunto_cliente' adjunto.id %}" 
+                                   class="btn btn-primary">
+                                    <i class="bi bi-download me-2"></i>Descargar
+                                </a>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Estado vacío -->
+            <div class="text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-files display-1 text-muted"></i>
+                </div>
+                <h4 class="text-muted">No hay adjuntos</h4>
+                <p class="text-muted">Este cliente aún no tiene documentos adjuntos.</p>
+                <a href="{% url 'microcreditos:subir_adjunto_cliente' cliente.id %}" class="btn btn-success">
+                    <i class="bi bi-cloud-upload me-2"></i>Subir Primer Adjunto
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

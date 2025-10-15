@@ -1,0 +1,238 @@
+{% extends 'dashboard_base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Eliminación - {{ diario.nombre }} - YaPresto{% endblock %}
+{% block page_title %}Confirmar Eliminación: {{ diario.nombre }}{% endblock %}
+
+{% block dashboard_content %}
+<!-- Breadcrumb y botón cancelar -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'microcreditos:dashboard' %}">Dashboard</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'microcreditos:lista_diarios' %}">Diarios</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'microcreditos:detalle_diario' diario.pk %}">{{ diario.nombre }}</a>
+            </li>
+            <li class="breadcrumb-item active">Eliminar</li>
+        </ol>
+    </nav>
+    <a href="{% url 'microcreditos:detalle_diario' diario.pk %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Cancelar
+    </a>
+</div>
+
+    <!-- Contenido Principal -->
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10">
+            <!-- Alerta de Advertencia -->
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>¡Atención!</strong> Esta acción no se puede deshacer. Una vez eliminado el diario, 
+                toda la información asociada se perderá permanentemente.
+            </div>
+
+            <!-- Información del Diario a Eliminar -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-danger text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-trash me-2"></i>Diario a Eliminar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-4 border-danger ps-3">
+                                <h6 class="text-gray-800 mb-1">Nombre del Diario</h6>
+                                <p class="h5 mb-0 text-gray-900">{{ diario.nombre }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-4 border-warning ps-3">
+                                <h6 class="text-gray-800 mb-1">Código</h6>
+                                <p class="h5 mb-0 text-gray-900">
+                                    <span class="badge bg-warning text-dark fs-6">{{ diario.codigo }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if diario.descripcion %}
+                    <div class="mb-3">
+                        <div class="border-start border-4 border-info ps-3">
+                            <h6 class="text-gray-800 mb-1">Descripción</h6>
+                            <p class="text-gray-900 mb-0">{{ diario.descripcion }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-4 border-secondary ps-3">
+                                <h6 class="text-gray-800 mb-1">Estado</h6>
+                                <p class="mb-0">
+                                    {% if diario.activo %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check-circle me-1"></i>Activo
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-times-circle me-1"></i>Inactivo
+                                        </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-4 border-primary ps-3">
+                                <h6 class="text-gray-800 mb-1">Fecha de Creación</h6>
+                                <p class="text-gray-900 mb-0">
+                                    {{ diario.fecha_creacion|date:"d/m/Y H:i" }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Verificaciones de Seguridad -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">
+                        <i class="fas fa-shield-alt me-2"></i>Verificaciones de Seguridad
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-file-invoice text-info me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Movimientos Asociados</h6>
+                                    <p class="text-muted mb-0 small">
+                                        Movimientos registrados: <strong class="text-primary">0</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-link text-warning me-3"></i>
+                                <div>
+                                    <h6 class="mb-1">Referencias</h6>
+                                    <p class="text-muted mb-0 small">
+                                        Referencias encontradas: <strong class="text-primary">0</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Nota:</strong> Actualmente no hay movimientos asociados a este diario, 
+                        por lo que es seguro eliminarlo.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de Confirmación -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-light">
+                    <h6 class="m-0 font-weight-bold text-dark">
+                        <i class="fas fa-check-circle me-2"></i>Confirmación Final
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                                <label class="form-check-label" for="confirmDelete">
+                                    <strong>Confirmo que entiendo que esta acción es irreversible</strong>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-0 small">
+                                    <i class="fas fa-clock me-1"></i>
+                                    Esta acción se registrará en el log del sistema
+                                </p>
+                            </div>
+                            <div>
+                                <a href="{% url 'microcreditos:detalle_diario' diario.pk %}" 
+                                   class="btn btn-secondary me-2">
+                                    <i class="fas fa-times me-2"></i>Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                    <i class="fas fa-trash me-2"></i>Eliminar Diario
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de Recuperación -->
+            <div class="card shadow mb-4 border-info">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-undo me-2"></i>¿Necesita Recuperar Datos?
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Si elimina este diario por error, las únicas formas de recuperar la información son:
+                    </p>
+                    <ul class="text-muted">
+                        <li>Restaurar desde un respaldo reciente del sistema</li>
+                        <li>Recrear manualmente el diario con la misma información</li>
+                        <li>Contactar al administrador del sistema si hay respaldos disponibles</li>
+                    </ul>
+                    <div class="alert alert-info mt-3" role="alert">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Sugerencia:</strong> Si solo necesita desactivar temporalmente el diario, 
+                        use la opción de "Estado Inactivo" en lugar de eliminarlo.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const deleteButton = document.getElementById('deleteButton');
+    
+    // Habilitar/deshabilitar botón según checkbox
+    confirmCheckbox.addEventListener('change', function() {
+        deleteButton.disabled = !this.checked;
+        
+        if (this.checked) {
+            deleteButton.classList.remove('btn-secondary');
+            deleteButton.classList.add('btn-danger');
+        } else {
+            deleteButton.classList.remove('btn-danger');
+            deleteButton.classList.add('btn-secondary');
+        }
+    });
+    
+    // Confirmación adicional al hacer clic en eliminar
+    deleteButton.addEventListener('click', function(e) {
+        if (!confirm('¿Está COMPLETAMENTE SEGURO de eliminar el diario "{{ diario.nombre }}"?\n\nEsta acción NO se puede deshacer.')) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}
