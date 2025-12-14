@@ -11,13 +11,26 @@ const clienteSchema = z.object({
   direccion: z.string().min(5).optional(),
   cedula: z.string().min(5).optional(),
   fechaNacimiento: z.string().optional(),
+  password: z.string().optional(),
 });
 
 // GET: Obtener un cliente por ID
-export const GET = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAuth(async (req: NextRequest, context: any) => {
   try {
-    const cliente = await prisma.cliente.findUnique({
-      where: { id: params.id },
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
+    const cliente = await prisma.cliente.findFirst({
+      where: { 
+        id: params.id,
+        empresaId: user.empresaActivaId,
+      },
       include: {
         creditos: {
           include: {
@@ -44,14 +57,51 @@ export const GET = withAuth(async (req: NextRequest, { params }: { params: { id:
 });
 
 // PUT: Actualizar un cliente
-export const PUT = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAuth(async (req: NextRequest, context: any) => {
   try {
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const data = clienteSchema.parse(body);
 
-    const updateData: any = { ...data };
-    if (data.fechaNacimiento) {
-      updateData.fechaNacimiento = new Date(data.fechaNacimiento);
+    // Verificar que el cliente pertenece a la empresa
+    const clienteExistente = await prisma.cliente.findFirst({
+      where: {
+        id: params.id,
+        empresaId: user.empresaActivaId,
+      },
+    });
+
+    if (!clienteExistente) {
+      return NextResponse.json(
+        { error: 'Cliente no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    const updateData: any = {};
+    
+    // Copiar solo los campos que tienen valor
+    Object.keys(data).forEach(key => {
+      if (data[key as keyof typeof data] !== undefined) {
+        updateData[key] = data[key as keyof typeof data];
+      }
+    });
+
+    if (updateData.fechaNacimiento) {
+      updateData.fechaNacimiento = new Date(updateData.fechaNacimiento);
+    }
+
+    // Solo actualizar password si se proporcionó y no está vacío
+    if (!updateData.password || updateData.password === '') {
+      delete updateData.password;
     }
 
     const cliente = await prisma.cliente.update({
@@ -75,8 +125,32 @@ export const PUT = withAuth(async (req: NextRequest, { params }: { params: { id:
 });
 
 // DELETE: Eliminar un cliente
-export const DELETE = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAuth(async (req: NextRequest, context: any) => {
   try {
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar que el cliente pertenece a la empresa
+    const clienteExistente = await prisma.cliente.findFirst({
+      where: {
+        id: params.id,
+        empresaId: user.empresaActivaId,
+      },
+    });
+
+    if (!clienteExistente) {
+      return NextResponse.json(
+        { error: 'Cliente no encontrado' },
+        { status: 404 }
+      );
+    }
+
     await prisma.cliente.delete({
       where: { id: params.id },
     });

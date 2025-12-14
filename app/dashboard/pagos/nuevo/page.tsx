@@ -1,7 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function NuevoPagoPage() {
   const router = useRouter();
@@ -9,6 +12,13 @@ export default function NuevoPagoPage() {
   const [creditoSeleccionado, setCreditoSeleccionado] = useState<any>(null);
   const [cuotasDisponibles, setCuotasDisponibles] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [empresa, setEmpresa] = useState<any>(null);
+
+  // Obtener moneda de la empresa
+  const monedaEmpresa = empresa?.moneda || 'USD';
+  const simboloMoneda = getCurrencySymbol(monedaEmpresa);
+  const formatMoney = (amount: number, decimals = 2) => formatCurrency(amount, monedaEmpresa, { decimals });
+
   const [formData, setFormData] = useState({
     creditoId: '',
     monto: '',
@@ -23,10 +33,29 @@ export default function NuevoPagoPage() {
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      // Cargar empresa activa
+      if (parsedUser.empresaActivaId) {
+        loadEmpresa(parsedUser.empresaActivaId);
+      }
     }
     loadCreditos();
   }, []);
+
+  const loadEmpresa = async (empresaId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/empresas/${empresaId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setEmpresa(await res.json());
+      }
+    } catch (error) {
+      console.error('Error al cargar empresa:', error);
+    }
+  };
 
   useEffect(() => {
     if (formData.creditoId) {
@@ -170,7 +199,7 @@ export default function NuevoPagoPage() {
                   <option value="">Seleccione un crédito</option>
                   {creditos.map((credito) => (
                     <option key={credito.id} value={credito.id}>
-                      {credito.cliente?.nombre} {credito.cliente?.apellido} - ${credito.monto.toLocaleString()} ({credito.estado})
+                      {credito.cliente?.nombre} {credito.cliente?.apellido} - {formatMoney(credito.monto)} ({credito.estado})
                     </option>
                   ))}
                 </select>
@@ -224,11 +253,11 @@ export default function NuevoPagoPage() {
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="text-blue-700">Monto total:</span>
-                      <span className="font-semibold ml-2">${creditoSeleccionado.monto.toLocaleString()}</span>
+                      <span className="font-semibold ml-2">{formatMoney(creditoSeleccionado.monto)}</span>
                     </div>
                     <div>
                       <span className="text-blue-700">Cuota mensual:</span>
-                      <span className="font-semibold ml-2">${creditoSeleccionado.cuotaMensual.toFixed(2)}</span>
+                      <span className="font-semibold ml-2">{formatMoney(creditoSeleccionado.cuotaMensual)}</span>
                     </div>
                     <div>
                       <span className="text-blue-700">Cuotas pendientes:</span>
@@ -237,7 +266,7 @@ export default function NuevoPagoPage() {
                     <div>
                       <span className="text-blue-700">Saldo pendiente:</span>
                       <span className="font-semibold ml-2">
-                        ${cuotasDisponibles.reduce((sum: number, c: any) => sum + c.montoCuota, 0).toFixed(2)}
+                        {formatMoney(cuotasDisponibles.reduce((sum: number, c: any) => sum + c.montoCuota, 0))}
                       </span>
                     </div>
                   </div>
@@ -247,7 +276,7 @@ export default function NuevoPagoPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto a Pagar ($) *
+                    Monto a Pagar ({simboloMoneda}) *
                   </label>
                   <input
                     type="number"
@@ -308,7 +337,7 @@ export default function NuevoPagoPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-green-700">Total a cubrir:</span>
-                      <span className="font-bold text-lg">${calcularTotalCuotas().toFixed(2)}</span>
+                      <span className="font-bold text-lg">{formatMoney(calcularTotalCuotas())}</span>
                     </div>
                     {parseFloat(formData.monto) < calcularTotalCuotas() && (
                       <p className="text-sm text-orange-600">
@@ -328,18 +357,18 @@ export default function NuevoPagoPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="text-purple-700">Monto del aporte:</span>
-                      <span className="font-bold text-lg">${parseFloat(formData.monto || '0').toLocaleString()}</span>
+                      <span className="font-bold text-lg">{formatMoney(parseFloat(formData.monto || '0'))}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-purple-700">Saldo actual:</span>
                       <span className="font-semibold">
-                        ${(creditoSeleccionado.monto - creditoSeleccionado.montoPagado).toLocaleString()}
+                        {formatMoney(creditoSeleccionado.monto - creditoSeleccionado.montoPagado)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-purple-700">Nuevo saldo:</span>
                       <span className="font-semibold text-green-600">
-                        ${Math.max(0, creditoSeleccionado.monto - creditoSeleccionado.montoPagado - parseFloat(formData.monto || '0')).toLocaleString()}
+                        {formatMoney(Math.max(0, creditoSeleccionado.monto - creditoSeleccionado.montoPagado - parseFloat(formData.monto || '0')))}
                       </span>
                     </div>
                     <div className="mt-3 pt-3 border-t border-purple-200">

@@ -1,8 +1,11 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -12,6 +15,7 @@ export default function DashboardPage() {
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [configuraciones, setConfiguraciones] = useState<any[]>([]);
+  const [evaluaciones, setEvaluaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'clientes' | 'evaluacion' | 'creditos' | 'pagos' | 'cuotas' | 'reportes' | 'configuracion' | 'perfil' | 'empresas' | 'usuarios' | 'configuracion-creditos'>('overview');
   const [user, setUser] = useState<any>(null);
@@ -31,6 +35,19 @@ export default function DashboardPage() {
   const [fechaDesdeFilter, setFechaDesdeFilter] = useState('');
   const [fechaHastaFilter, setFechaHastaFilter] = useState('');
   const [vistaGrafico, setVistaGrafico] = useState<'dia' | 'mes' | 'año'>('mes');
+  const [mostrarGrafico, setMostrarGrafico] = useState(false);
+  const [paginaCuotas, setPaginaCuotas] = useState(1);
+  const [pagoSeleccionado, setPagoSeleccionado] = useState<any>(null);
+  const [mostrarDetallePago, setMostrarDetallePago] = useState(false);
+  const cuotasPorPagina = 20;
+
+  // Obtener moneda de la empresa activa
+  const empresaActiva = empresas.find(e => e.id === user?.empresaActivaId);
+  const monedaEmpresa = empresaActiva?.moneda || 'USD';
+  const simboloMoneda = getCurrencySymbol(monedaEmpresa);
+
+  // Helper function para formatear moneda con la moneda de la empresa
+  const formatMoney = (amount: number, decimals = 2) => formatCurrency(amount, monedaEmpresa, { decimals });
 
   const handleDeleteEmpresa = async (id: string, nombre: string) => {
     if (!confirm(`¿Estás seguro de eliminar la empresa "${nombre}"?`)) {
@@ -74,9 +91,12 @@ export default function DashboardPage() {
         throw new Error('Error al activar empresa');
       }
 
-      const updatedUser = await res.json();
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      const data = await res.json();
+      
+      // Guardar el nuevo token y usuario
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
       
       // Recargar la página para aplicar cambios
       window.location.reload();
@@ -200,7 +220,16 @@ export default function DashboardPage() {
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const user = JSON.parse(userData);
+      setUser(user);
+      
+      // Verificar si el usuario tiene empresaActivaId
+      if (!user.empresaActivaId) {
+        alert('Tu sesión no tiene una empresa activa asignada. Por favor, inicia sesión nuevamente.');
+        localStorage.clear();
+        router.push('/login');
+        return;
+      }
     }
     loadData();
   }, []);
@@ -208,7 +237,7 @@ export default function DashboardPage() {
   const loadData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [clientesRes, creditosRes, empresasRes, usuariosRes, configuracionesRes] = await Promise.all([
+      const [clientesRes, creditosRes, empresasRes, usuariosRes, configuracionesRes, evaluacionesRes] = await Promise.all([
         fetch('/api/clientes', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -230,6 +259,11 @@ export default function DashboardPage() {
           },
         }),
         fetch('/api/configuracion-creditos', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }),
+        fetch('/api/evaluaciones', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -259,6 +293,11 @@ export default function DashboardPage() {
       if (configuracionesRes.ok) {
         const configuracionesData = await configuracionesRes.json();
         setConfiguraciones(configuracionesData);
+      }
+
+      if (evaluacionesRes.ok) {
+        const evaluacionesData = await evaluacionesRes.json();
+        setEvaluaciones(evaluacionesData);
       }
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -387,22 +426,43 @@ export default function DashboardPage() {
               {activeTab === 'configuracion-creditos' && 'Configuración de Créditos'}
               {activeTab === 'perfil' && 'Mi Perfil'}
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {new Date().toLocaleDateString('es-ES', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
+            <div className="flex items-center space-x-4 mt-1">
+              <p className="text-sm text-gray-500">
+                {new Date().toLocaleDateString('es-ES', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}
+              </p>
+              {user?.empresaActiva && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-400">•</span>
+                  <div className="flex items-center space-x-2">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: user.empresaActiva.color }}
+                    />
+                    <span className="text-sm font-medium" style={{ color: user.empresaActiva.color }}>
+                      {user.empresaActiva.nombre}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-              <i className="fa-solid fa-bell text-xl text-gray-600"></i>
-            </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-              <i className="fa-solid fa-circle-question text-xl text-gray-600"></i>
-            </button>
+          <div className="flex items-center space-x-4">
+            {user?.empresaActiva && (
+              <div className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                <div 
+                  className="w-2.5 h-2.5 rounded-full" 
+                  style={{ backgroundColor: user.empresaActiva.color }}
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {user.empresaActiva.nombre}
+                </span>
+              </div>
+            )}
             <button 
               onClick={() => setActiveTab('perfil')}
               className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -466,7 +526,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-500">Monto Total</p>
                     <p className="text-3xl font-bold text-green-600 mt-2">
-                      ${totalCreditos.toLocaleString()}
+                      {formatMoney(totalCreditos)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -484,7 +544,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="text-sm font-medium text-gray-500">Recuperado</p>
                     <p className="text-3xl font-bold text-purple-600 mt-2">
-                      ${montoRecuperado.toLocaleString()}
+                      {formatMoney(montoRecuperado)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -539,9 +599,21 @@ export default function DashboardPage() {
                   </a>
                   <a
                     href="/dashboard/creditos/nuevo"
-                    className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-center"
+                    className="p-4 border-2 border-dashed border-gray-300 rounded-lg transition-all text-center"
+                    style={{ 
+                      borderColor: user?.empresaActiva?.color || '#10b981',
+                      '--hover-bg': `${user?.empresaActiva?.color || '#10b981'}20`
+                    } as React.CSSProperties}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = `${user?.empresaActiva?.color || '#10b981'}20`;
+                      e.currentTarget.style.borderColor = user?.empresaActiva?.color || '#10b981';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.borderColor = '#d1d5db';
+                    }}
                   >
-                    <i className="fa-solid fa-money-bill-wave text-3xl text-green-600 block mb-2"></i>
+                    <i className="fa-solid fa-money-bill-wave text-3xl block mb-2" style={{ color: user?.empresaActiva?.color || '#10b981' }}></i>
                     <span className="text-sm font-medium text-gray-700">Nuevo Crédito</span>
                   </a>
                   <button
@@ -595,6 +667,9 @@ export default function DashboardPage() {
                       Teléfono
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Empresa
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Créditos
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -616,6 +691,12 @@ export default function DashboardPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {cliente.telefono}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: empresas.find(e => e.id === cliente.empresaId)?.color || '#6b7280' }}></div>
+                          <span className="text-sm text-gray-600">{empresas.find(e => e.id === cliente.empresaId)?.nombre || 'N/A'}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {cliente.creditos?.length || 0}
@@ -662,9 +743,85 @@ export default function DashboardPage() {
               </a>
             </div>
             <div className="bg-white shadow-sm rounded-xl overflow-hidden border border-gray-200">
-              <p className="p-8 text-center text-gray-500">
-                Funcionalidad de evaluación crediticia disponible. Haz clic en "Nueva Evaluación" para comenzar.
-              </p>
+              {evaluaciones.length > 0 ? (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cliente
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ingresos Mensuales
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Gastos Mensuales
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Capacidad de Endeudamiento
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        % Endeudamiento
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Empresa
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {evaluaciones.map((evaluacion: any) => (
+                      <tr key={evaluacion.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {evaluacion.cliente?.nombre} {evaluacion.cliente?.apellido}
+                          </div>
+                          <div className="text-sm text-gray-500">{evaluacion.cliente?.cedula}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {formatMoney(evaluacion.ingresosMensuales)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
+                          {formatMoney(evaluacion.gastosMensuales)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-bold text-green-600">
+                            {formatMoney(evaluacion.capacidadEndeudamiento)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Cuota máxima mensual
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {evaluacion.porcentajeEndeudamiento}%
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: empresas.find(e => e.id === evaluacion.cliente?.empresaId)?.color || '#6b7280' }}></div>
+                            <span className="text-sm text-gray-600">{empresas.find(e => e.id === evaluacion.cliente?.empresaId)?.nombre || 'N/A'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(evaluacion.createdAt).toLocaleDateString('es-ES')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-8 text-center">
+                  <i className="fa-solid fa-chart-pie text-5xl text-gray-400 block mb-4"></i>
+                  <p className="text-gray-600 mb-2">No hay evaluaciones registradas</p>
+                  <a
+                    href="/dashboard/evaluacion/nuevo"
+                    className="inline-flex items-center text-blue-600 hover:text-blue-700"
+                  >
+                    <span>+</span>
+                    <span className="ml-1">Crear primera evaluación</span>
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -679,7 +836,8 @@ export default function DashboardPage() {
               </div>
               <a
                 href="/dashboard/creditos/nuevo"
-                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
+                className="flex items-center space-x-2 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm hover:shadow-md hover:scale-105"
+                style={{ backgroundColor: user?.empresaActiva?.color || '#2563eb' }}
               >
                 <span>+</span>
                 <span>Nuevo Crédito</span>
@@ -702,6 +860,9 @@ export default function DashboardPage() {
                       Plazo
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Empresa
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -718,13 +879,19 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                        ${credito.monto.toLocaleString()}
+                        {formatMoney(credito.monto)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${credito.cuotaMensual.toFixed(2)}
+                        {formatMoney(credito.cuotaMensual)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {credito.plazoMeses} meses
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: empresas.find(e => e.id === credito.empresaId)?.color || '#6b7280' }}></div>
+                          <span className="text-sm text-gray-600">{empresas.find(e => e.id === credito.empresaId)?.nombre || 'N/A'}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
@@ -813,6 +980,12 @@ export default function DashboardPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Método
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Empresa
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -828,7 +1001,7 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          ${credito.monto.toLocaleString()}
+                          {formatMoney(credito.monto)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {pago.tipoPago === 'cuotas' ? (
@@ -844,19 +1017,38 @@ export default function DashboardPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                          ${pago.monto.toLocaleString()}
+                          {formatMoney(pago.monto)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                             {pago.metodoPago}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: empresas.find(e => e.id === credito.empresaId)?.color || '#6b7280' }}></div>
+                            <span className="text-sm text-gray-600">{empresas.find(e => e.id === credito.empresaId)?.nombre || 'N/A'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button
+                            onClick={() => {
+                              setPagoSeleccionado({ ...pago, credito });
+                              setMostrarDetallePago(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                            title="Ver detalle y comprobante"
+                          >
+                            <i className="fa-solid fa-eye mr-1"></i>
+                            Ver Detalle
+                          </button>
+                        </td>
                       </tr>
                     )) || []
                   )}
                   {creditos.every(c => !c.pagos || c.pagos.length === 0) && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center">
+                      <td colSpan={7} className="px-6 py-12 text-center">
                         <i className="fa-solid fa-hand-holding-dollar text-5xl text-gray-400 block mb-4"></i>
                         <p className="text-gray-600 mb-2">No hay pagos registrados</p>
                         <a
@@ -872,6 +1064,343 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Modal de Detalle de Pago */}
+            {mostrarDetallePago && pagoSeleccionado && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  {/* Header del modal */}
+                  <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-gray-900">
+                      <i className="fa-solid fa-receipt mr-2 text-blue-600"></i>
+                      Comprobante de Pago
+                    </h3>
+                    <button
+                      onClick={() => setMostrarDetallePago(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <i className="fa-solid fa-times text-xl"></i>
+                    </button>
+                  </div>
+
+                  {/* Contenido del comprobante */}
+                  <div id="comprobante-pago" className="p-8">
+                    {/* Logo y empresa */}
+                    <div className="text-center mb-6 pb-6 border-b border-gray-200">
+                      {user?.empresaActiva?.logo && (
+                        <img
+                          src={user.empresaActiva.logo}
+                          alt="Logo"
+                          className="h-16 mx-auto mb-3"
+                        />
+                      )}
+                      <h2 className="text-2xl font-bold" style={{ color: user?.empresaActiva?.color || '#2563eb' }}>
+                        {user?.empresaActiva?.nombre || 'YaPresto'}
+                      </h2>
+                      <p className="text-gray-600 text-sm mt-1">Comprobante de Pago</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Fecha de emisión: {new Date().toLocaleDateString('es-ES')}
+                      </p>
+                    </div>
+
+                    {/* Información del cliente */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <h4 className="font-semibold text-gray-900 mb-3">Información del Cliente</h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-gray-600">Nombre:</span>
+                          <p className="font-medium text-gray-900">
+                            {pagoSeleccionado.credito?.cliente?.nombre} {pagoSeleccionado.credito?.cliente?.apellido}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Cédula:</span>
+                          <p className="font-medium text-gray-900">{pagoSeleccionado.credito?.cliente?.cedula}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Email:</span>
+                          <p className="font-medium text-gray-900">{pagoSeleccionado.credito?.cliente?.email}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Teléfono:</span>
+                          <p className="font-medium text-gray-900">{pagoSeleccionado.credito?.cliente?.telefono}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Información del crédito */}
+                    <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                      <h4 className="font-semibold text-gray-900 mb-3">Información del Crédito</h4>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-gray-600">Monto del Crédito:</span>
+                          <p className="font-medium text-gray-900">${pagoSeleccionado.credito?.monto.toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Tasa de Interés:</span>
+                          <p className="font-medium text-gray-900">{pagoSeleccionado.credito?.tasaInteres}%</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Plazo:</span>
+                          <p className="font-medium text-gray-900">{pagoSeleccionado.credito?.plazoMeses} meses</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Cuota Mensual:</span>
+                          <p className="font-medium text-gray-900">${pagoSeleccionado.credito?.cuotaMensual.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detalle del pago */}
+                    <div className="bg-green-50 rounded-lg p-4 mb-6">
+                      <h4 className="font-semibold text-gray-900 mb-3">Detalle del Pago</h4>
+                      <div className="space-y-3 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Fecha de Pago:</span>
+                          <p className="font-medium text-gray-900">
+                            {new Date(pagoSeleccionado.fechaPago).toLocaleDateString('es-ES', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Tipo de Pago:</span>
+                          <p className="font-medium text-gray-900">
+                            {pagoSeleccionado.tipoPago === 'cuotas' ? 'Pago de Cuotas' : 'Aporte a Capital'}
+                          </p>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Método de Pago:</span>
+                          <p className="font-medium text-gray-900 capitalize">{pagoSeleccionado.metodoPago}</p>
+                        </div>
+                        <div className="pt-3 border-t border-green-200">
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg font-semibold text-gray-900">Monto Pagado:</span>
+                            <p className="text-2xl font-bold text-green-600">
+                              ${pagoSeleccionado.monto.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Nota al pie */}
+                    <div className="text-center text-xs text-gray-500 pt-6 border-t border-gray-200">
+                      <p>Este comprobante es válido como constancia de pago</p>
+                      <p className="mt-1">ID de transacción: {pagoSeleccionado.id}</p>
+                    </div>
+                  </div>
+
+                  {/* Footer con botones */}
+                  <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+                    <button
+                      onClick={() => setMostrarDetallePago(false)}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const { jsPDF } = await import('jspdf');
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const margin = 20;
+                        let yPos = 20;
+
+                        // Logo y empresa
+                        pdf.setFontSize(20);
+                        pdf.setFont('helvetica', 'bold');
+                        const empresaColor = user?.empresaActiva?.color || '#2563eb';
+                        const [r, g, b] = [
+                          parseInt(empresaColor.slice(1, 3), 16),
+                          parseInt(empresaColor.slice(3, 5), 16),
+                          parseInt(empresaColor.slice(5, 7), 16)
+                        ];
+                        pdf.setTextColor(r, g, b);
+                        pdf.text(user?.empresaActiva?.nombre || 'YaPresto', pageWidth / 2, yPos, { align: 'center' });
+                        
+                        yPos += 8;
+                        pdf.setFontSize(12);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(100);
+                        pdf.text('COMPROBANTE DE PAGO', pageWidth / 2, yPos, { align: 'center' });
+                        
+                        yPos += 6;
+                        pdf.setFontSize(9);
+                        pdf.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-ES')}`, pageWidth / 2, yPos, { align: 'center' });
+                        
+                        // Línea separadora
+                        yPos += 8;
+                        pdf.setDrawColor(200);
+                        pdf.line(margin, yPos, pageWidth - margin, yPos);
+                        yPos += 10;
+
+                        // Información del Cliente
+                        pdf.setFillColor(245, 245, 245);
+                        pdf.rect(margin, yPos, pageWidth - 2 * margin, 35, 'F');
+                        yPos += 7;
+                        pdf.setFontSize(11);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text('INFORMACIÓN DEL CLIENTE', margin + 5, yPos);
+                        
+                        yPos += 7;
+                        pdf.setFontSize(9);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Nombre:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(`${pagoSeleccionado.credito?.cliente?.nombre} ${pagoSeleccionado.credito?.cliente?.apellido}`, margin + 30, yPos);
+                        
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Cédula:', pageWidth / 2 + 10, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(pagoSeleccionado.credito?.cliente?.cedula, pageWidth / 2 + 30, yPos);
+                        
+                        yPos += 6;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Email:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(pagoSeleccionado.credito?.cliente?.email, margin + 30, yPos);
+                        
+                        yPos += 6;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Teléfono:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(pagoSeleccionado.credito?.cliente?.telefono, margin + 30, yPos);
+                        
+                        yPos += 12;
+
+                        // Información del Crédito
+                        pdf.setFillColor(239, 246, 255);
+                        pdf.rect(margin, yPos, pageWidth - 2 * margin, 30, 'F');
+                        yPos += 7;
+                        pdf.setFontSize(11);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text('INFORMACIÓN DEL CRÉDITO', margin + 5, yPos);
+                        
+                        yPos += 7;
+                        pdf.setFontSize(9);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Monto:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(formatMoney(pagoSeleccionado.credito?.monto), margin + 30, yPos);
+                        
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Tasa:', pageWidth / 2 + 10, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(`${pagoSeleccionado.credito?.tasaInteres}%`, pageWidth / 2 + 30, yPos);
+                        
+                        yPos += 6;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Plazo:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(`${pagoSeleccionado.credito?.plazoMeses} meses`, margin + 30, yPos);
+                        
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Cuota:', pageWidth / 2 + 10, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(formatMoney(pagoSeleccionado.credito?.cuotaMensual), pageWidth / 2 + 30, yPos);
+                        
+                        yPos += 12;
+
+                        // Detalle del Pago
+                        pdf.setFillColor(240, 253, 244);
+                        pdf.rect(margin, yPos, pageWidth - 2 * margin, 40, 'F');
+                        yPos += 7;
+                        pdf.setFontSize(11);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text('DETALLE DEL PAGO', margin + 5, yPos);
+                        
+                        yPos += 7;
+                        pdf.setFontSize(9);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Fecha:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        const fechaPago = new Date(pagoSeleccionado.fechaPago).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        });
+                        pdf.text(fechaPago, margin + 30, yPos);
+                        
+                        yPos += 6;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Tipo:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(pagoSeleccionado.tipoPago === 'cuotas' ? 'Pago de Cuotas' : 'Aporte a Capital', margin + 30, yPos);
+                        
+                        yPos += 6;
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(80);
+                        pdf.text('Método:', margin + 5, yPos);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text(pagoSeleccionado.metodoPago.charAt(0).toUpperCase() + pagoSeleccionado.metodoPago.slice(1), margin + 30, yPos);
+                        
+                        yPos += 10;
+                        pdf.setDrawColor(34, 197, 94);
+                        pdf.line(margin + 5, yPos, pageWidth - margin - 5, yPos);
+                        yPos += 7;
+                        
+                        pdf.setFontSize(12);
+                        pdf.setFont('helvetica', 'bold');
+                        pdf.setTextColor(0);
+                        pdf.text('MONTO PAGADO:', margin + 5, yPos);
+                        pdf.setFontSize(16);
+                        pdf.setTextColor(34, 197, 94);
+                        pdf.text(formatMoney(pagoSeleccionado.monto), pageWidth - margin - 5, yPos, { align: 'right' });
+                        
+                        // Nota al pie
+                        yPos = pdf.internal.pageSize.getHeight() - 30;
+                        pdf.setDrawColor(200);
+                        pdf.line(margin, yPos, pageWidth - margin, yPos);
+                        yPos += 6;
+                        pdf.setFontSize(8);
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setTextColor(120);
+                        pdf.text('Este comprobante es válido como constancia de pago', pageWidth / 2, yPos, { align: 'center' });
+                        yPos += 4;
+                        pdf.text(`ID de transacción: ${pagoSeleccionado.id}`, pageWidth / 2, yPos, { align: 'center' });
+                        
+                        // Guardar PDF
+                        const nombreArchivo = `Comprobante_${pagoSeleccionado.credito?.cliente?.cedula}_${new Date().getTime()}.pdf`;
+                        pdf.save(nombreArchivo);
+                      }}
+                      className="px-4 py-2 text-white rounded-lg font-medium transition-colors shadow-sm hover:shadow-md"
+                      style={{ backgroundColor: user?.empresaActiva?.color || '#2563eb' }}
+                    >
+                      <i className="fa-solid fa-download mr-2"></i>
+                      Descargar Comprobante
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -899,17 +1428,30 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* Botón para mostrar/ocultar gráfico */}
+            <div className="mb-6">
+              <button
+                onClick={() => setMostrarGrafico(!mostrarGrafico)}
+                className="flex items-center space-x-2 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-sm hover:shadow-md hover:scale-105"
+                style={{ backgroundColor: user?.empresaActiva?.color || '#2563eb' }}
+              >
+                <i className={`fa-solid ${mostrarGrafico ? 'fa-chart-line-down' : 'fa-chart-line'}`}></i>
+                <span>{mostrarGrafico ? 'Ocultar Gráfico' : 'Mostrar Gráfico'}</span>
+              </button>
+            </div>
+
             {/* Gráfico de Ingresos */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    <i className="fa-solid fa-chart-line mr-2 text-blue-600"></i>
-                    Análisis de Estado de Cuotas
-                  </h4>
-                  <p className="text-sm text-gray-500 mt-1">Montos de cuotas por estado y período</p>
-                </div>
-                <div className="flex space-x-2">
+            {mostrarGrafico && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900">
+                      <i className="fa-solid fa-chart-line mr-2 text-blue-600"></i>
+                      Análisis de Estado de Cuotas
+                    </h4>
+                    <p className="text-sm text-gray-500 mt-1">Montos de cuotas por estado y período</p>
+                  </div>
+                  <div className="flex space-x-2">
                   <button
                     onClick={() => setVistaGrafico('dia')}
                     className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -1018,10 +1560,10 @@ export default function DashboardPage() {
                     />
                     <YAxis 
                       style={{ fontSize: '12px' }}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
+                      tickFormatter={(value) => formatMoney(value, 0)}
                     />
                     <Tooltip 
-                      formatter={(value: any) => `$${value.toLocaleString()}`}
+                      formatter={(value: any) => formatMoney(value)}
                       contentStyle={{ backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px' }}
                     />
                     <Legend />
@@ -1062,7 +1604,7 @@ export default function DashboardPage() {
                     Total Pagado
                   </p>
                   <p className="text-2xl font-bold text-green-600">
-                    ${creditos.reduce((total, c) => total + (c.cuotas?.filter((cu: any) => cu.pagado).reduce((sum: number, cu: any) => sum + cu.montoCuota, 0) || 0), 0).toLocaleString()}
+                    {formatMoney(creditos.reduce((total, c) => total + (c.cuotas?.filter((cu: any) => cu.pagado).reduce((sum: number, cu: any) => sum + cu.montoCuota, 0) || 0), 0))}
                   </p>
                 </div>
                 <div className="text-center">
@@ -1071,10 +1613,10 @@ export default function DashboardPage() {
                     Total Pendiente
                   </p>
                   <p className="text-2xl font-bold text-yellow-600">
-                    ${creditos.reduce((total, c) => {
+                    {formatMoney(creditos.reduce((total, c) => {
                       const hoy = new Date();
                       return total + (c.cuotas?.filter((cu: any) => !cu.pagado && new Date(cu.fechaVencimiento) >= hoy).reduce((sum: number, cu: any) => sum + cu.montoCuota, 0) || 0);
-                    }, 0).toLocaleString()}
+                    }, 0))}
                   </p>
                 </div>
                 <div className="text-center">
@@ -1083,14 +1625,15 @@ export default function DashboardPage() {
                     Total Vencido
                   </p>
                   <p className="text-2xl font-bold text-red-600">
-                    ${creditos.reduce((total, c) => {
+                    {formatMoney(creditos.reduce((total, c) => {
                       const hoy = new Date();
                       return total + (c.cuotas?.filter((cu: any) => !cu.pagado && new Date(cu.fechaVencimiento) < hoy).reduce((sum: number, cu: any) => sum + cu.montoCuota, 0) || 0);
-                    }, 0).toLocaleString()}
+                    }, 0))}
                   </p>
                 </div>
               </div>
-            </div>
+              </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-200 bg-gray-50">
@@ -1189,6 +1732,9 @@ export default function DashboardPage() {
                         Fecha Venc.
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Empresa
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1197,66 +1743,74 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {creditos.flatMap(credito => 
-                      credito.cuotas?.map((cuota: any) => {
+                    {(() => {
+                      // Filtrar cuotas
+                      const cuotasFiltradas = creditos.flatMap(credito => 
+                        credito.cuotas?.map((cuota: any) => ({...cuota, credito})).filter((cuota: any) => {
+                          const hoy = new Date();
+                          const fechaVenc = new Date(cuota.fechaVencimiento);
+                          const estaVencida = !cuota.pagado && fechaVenc < hoy;
+                          
+                          const nombreCompleto = `${cuota.credito.cliente?.nombre || ''} ${cuota.credito.cliente?.apellido || ''}`.toLowerCase();
+                          const cedula = (cuota.credito.cliente?.cedula || '').toLowerCase();
+                          const busquedaCliente = clienteFilter.toLowerCase();
+                          
+                          if (clienteFilter && !nombreCompleto.includes(busquedaCliente) && !cedula.includes(busquedaCliente)) return false;
+                          if (estadoFilter) {
+                            if (estadoFilter === 'pagado' && !cuota.pagado) return false;
+                            if (estadoFilter === 'vencido' && (!estaVencida || cuota.pagado)) return false;
+                            if (estadoFilter === 'pendiente' && (cuota.pagado || estaVencida)) return false;
+                          }
+                          if (fechaDesdeFilter && fechaVenc < new Date(fechaDesdeFilter)) return false;
+                          if (fechaHastaFilter) {
+                            const fechaHasta = new Date(fechaHastaFilter);
+                            fechaHasta.setHours(23, 59, 59, 999);
+                            if (fechaVenc > fechaHasta) return false;
+                          }
+                          return true;
+                        }) || []
+                      );
+                      
+                      // Paginar
+                      const inicio = (paginaCuotas - 1) * cuotasPorPagina;
+                      const fin = inicio + cuotasPorPagina;
+                      const cuotasPaginadas = cuotasFiltradas.slice(inicio, fin);
+                      
+                      return cuotasPaginadas.map((cuota: any) => {
                         const hoy = new Date();
                         const fechaVenc = new Date(cuota.fechaVencimiento);
                         const estaVencida = !cuota.pagado && fechaVenc < hoy;
-                        
-                        // Aplicar filtros
-                        const nombreCompleto = `${credito.cliente?.nombre || ''} ${credito.cliente?.apellido || ''}`.toLowerCase();
-                        const cedula = (credito.cliente?.cedula || '').toLowerCase();
-                        const busquedaCliente = clienteFilter.toLowerCase();
-                        
-                        // Filtro por cliente
-                        if (clienteFilter && !nombreCompleto.includes(busquedaCliente) && !cedula.includes(busquedaCliente)) {
-                          return null;
-                        }
-                        
-                        // Filtro por estado
-                        if (estadoFilter) {
-                          if (estadoFilter === 'pagado' && !cuota.pagado) return null;
-                          if (estadoFilter === 'vencido' && (!estaVencida || cuota.pagado)) return null;
-                          if (estadoFilter === 'pendiente' && (cuota.pagado || estaVencida)) return null;
-                        }
-                        
-                        // Filtro por fecha desde
-                        if (fechaDesdeFilter) {
-                          const fechaDesde = new Date(fechaDesdeFilter);
-                          if (fechaVenc < fechaDesde) return null;
-                        }
-                        
-                        // Filtro por fecha hasta
-                        if (fechaHastaFilter) {
-                          const fechaHasta = new Date(fechaHastaFilter);
-                          fechaHasta.setHours(23, 59, 59, 999); // Incluir todo el día
-                          if (fechaVenc > fechaHasta) return null;
-                        }
                         
                         return (
                           <tr key={cuota.id} className={`hover:bg-gray-50 ${
                             estaVencida ? 'bg-red-50' : ''
                           }`}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              ${credito.monto.toLocaleString()}
+                              {formatMoney(cuota.credito.monto)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                {credito.cliente?.nombre} {credito.cliente?.apellido}
+                                {cuota.credito.cliente?.nombre} {cuota.credito.cliente?.apellido}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {credito.cliente?.cedula}
+                                {cuota.credito.cliente?.cedula}
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <span className="font-semibold">{cuota.numeroCuota}</span> de {credito.plazoMeses}
+                              <span className="font-semibold">{cuota.numeroCuota}</span> de {cuota.credito.plazoMeses}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                              ${cuota.montoCuota.toFixed(2)}
+                              {formatMoney(cuota.montoCuota)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               <div className={estaVencida ? 'text-red-600 font-semibold' : 'text-gray-900'}>
                                 {new Date(cuota.fechaVencimiento).toLocaleDateString('es-ES')}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: empresas.find(e => e.id === cuota.credito.empresaId)?.color || '#6b7280' }}></div>
+                                <span className="text-sm text-gray-600">{empresas.find(e => e.id === cuota.credito.empresaId)?.nombre || 'N/A'}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -1285,11 +1839,11 @@ export default function DashboardPage() {
                             </td>
                           </tr>
                         );
-                      }) || []
-                    )}
+                      });
+                    })()}
                     {creditos.every(c => !c.cuotas || c.cuotas.length === 0) && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center">
+                        <td colSpan={8} className="px-6 py-12 text-center">
                           <i className="fa-solid fa-list-check text-5xl text-gray-400 block mb-4"></i>
                           <p className="text-gray-600 mb-2">No hay cuotas registradas</p>
                           <a
@@ -1304,6 +1858,124 @@ export default function DashboardPage() {
                     )}
                   </tbody>
                 </table>
+                
+                {/* Controles de paginación */}
+                {(() => {
+                  const cuotasFiltradas = creditos.flatMap(credito => 
+                    credito.cuotas?.map((cuota: any) => ({...cuota, credito})).filter((cuota: any) => {
+                      const hoy = new Date();
+                      const fechaVenc = new Date(cuota.fechaVencimiento);
+                      const estaVencida = !cuota.pagado && fechaVenc < hoy;
+                      
+                      const nombreCompleto = `${cuota.credito.cliente?.nombre || ''} ${cuota.credito.cliente?.apellido || ''}`.toLowerCase();
+                      const cedula = (cuota.credito.cliente?.cedula || '').toLowerCase();
+                      const busquedaCliente = clienteFilter.toLowerCase();
+                      
+                      if (clienteFilter && !nombreCompleto.includes(busquedaCliente) && !cedula.includes(busquedaCliente)) return false;
+                      if (estadoFilter) {
+                        if (estadoFilter === 'pagado' && !cuota.pagado) return false;
+                        if (estadoFilter === 'vencido' && (!estaVencida || cuota.pagado)) return false;
+                        if (estadoFilter === 'pendiente' && (cuota.pagado || estaVencida)) return false;
+                      }
+                      if (fechaDesdeFilter && fechaVenc < new Date(fechaDesdeFilter)) return false;
+                      if (fechaHastaFilter) {
+                        const fechaHasta = new Date(fechaHastaFilter);
+                        fechaHasta.setHours(23, 59, 59, 999);
+                        if (fechaVenc > fechaHasta) return false;
+                      }
+                      return true;
+                    }) || []
+                  );
+                  
+                  const totalPaginas = Math.ceil(cuotasFiltradas.length / cuotasPorPagina);
+                  
+                  if (totalPaginas <= 1) return null;
+                  
+                  return (
+                    <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 bg-white">
+                      <div className="flex-1 flex justify-between sm:hidden">
+                        <button
+                          onClick={() => setPaginaCuotas(Math.max(1, paginaCuotas - 1))}
+                          disabled={paginaCuotas === 1}
+                          className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Anterior
+                        </button>
+                        <button
+                          onClick={() => setPaginaCuotas(Math.min(totalPaginas, paginaCuotas + 1))}
+                          disabled={paginaCuotas === totalPaginas}
+                          className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                      <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm text-gray-700">
+                            Mostrando <span className="font-medium">{((paginaCuotas - 1) * cuotasPorPagina) + 1}</span> a <span className="font-medium">{Math.min(paginaCuotas * cuotasPorPagina, cuotasFiltradas.length)}</span> de{' '}
+                            <span className="font-medium">{cuotasFiltradas.length}</span> cuotas
+                          </p>
+                        </div>
+                        <div>
+                          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Paginación">
+                            <button
+                              onClick={() => setPaginaCuotas(Math.max(1, paginaCuotas - 1))}
+                              disabled={paginaCuotas === 1}
+                              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="sr-only">Anterior</span>
+                              <i className="fas fa-chevron-left"></i>
+                            </button>
+                            {[...Array(totalPaginas)].map((_, i) => {
+                              const pagina = i + 1;
+                              // Mostrar solo algunas páginas alrededor de la actual
+                              if (
+                                pagina === 1 ||
+                                pagina === totalPaginas ||
+                                (pagina >= paginaCuotas - 1 && pagina <= paginaCuotas + 1)
+                              ) {
+                                return (
+                                  <button
+                                    key={pagina}
+                                    onClick={() => setPaginaCuotas(pagina)}
+                                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                      pagina === paginaCuotas
+                                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    {pagina}
+                                  </button>
+                                );
+                              } else if (
+                                pagina === paginaCuotas - 2 ||
+                                pagina === paginaCuotas + 2
+                              ) {
+                                return (
+                                  <span
+                                    key={pagina}
+                                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700"
+                                  >
+                                    ...
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })}
+                            <button
+                              onClick={() => setPaginaCuotas(Math.min(totalPaginas, paginaCuotas + 1))}
+                              disabled={paginaCuotas === totalPaginas}
+                              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="sr-only">Siguiente</span>
+                              <i className="fas fa-chevron-right"></i>
+                            </button>
+                          </nav>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

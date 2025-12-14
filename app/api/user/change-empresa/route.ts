@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyToken } from '@/lib/jwt';
+import { verifyToken, signToken } from '@/lib/jwt';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,13 +38,25 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        role: true,
         profileImage: true,
         empresaActivaId: true,
         empresaActiva: true,
       },
     });
 
-    return NextResponse.json(updatedUser);
+    // Generar nuevo token con el empresaActivaId actualizado
+    const newToken = signToken({
+      userId: updatedUser.id,
+      email: updatedUser.email,
+      role: updatedUser.role,
+      empresaActivaId: updatedUser.empresaActivaId || undefined,
+    });
+
+    return NextResponse.json({
+      user: updatedUser,
+      token: newToken,
+    });
   } catch (error) {
     console.error('Error al cambiar empresa activa:', error);
     return NextResponse.json({ error: 'Error al cambiar empresa activa' }, { status: 500 });

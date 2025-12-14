@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email: user.email,
       role: user.role,
+      empresaActivaId: user.empresaActivaId || undefined,
     });
 
     return NextResponse.json({

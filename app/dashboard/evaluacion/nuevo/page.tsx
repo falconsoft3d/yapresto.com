@@ -1,12 +1,22 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function NuevaEvaluacionPage() {
   const router = useRouter();
   const [clientes, setClientes] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [empresa, setEmpresa] = useState<any>(null);
+
+  // Obtener moneda de la empresa
+  const monedaEmpresa = empresa?.moneda || 'USD';
+  const simboloMoneda = getCurrencySymbol(monedaEmpresa);
+  const formatMoney = (amount: number, decimals = 2) => formatCurrency(amount, monedaEmpresa, { decimals });
+
   const [formData, setFormData] = useState({
     clienteId: '',
     ingresosMensuales: '',
@@ -19,10 +29,29 @@ export default function NuevaEvaluacionPage() {
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      // Cargar empresa activa
+      if (parsedUser.empresaActivaId) {
+        loadEmpresa(parsedUser.empresaActivaId);
+      }
     }
     loadClientes();
   }, []);
+
+  const loadEmpresa = async (empresaId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/empresas/${empresaId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setEmpresa(await res.json());
+      }
+    } catch (error) {
+      console.error('Error al cargar empresa:', error);
+    }
+  };
 
   const loadClientes = async () => {
     try {
@@ -144,7 +173,7 @@ export default function NuevaEvaluacionPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <i className="fa-solid fa-dollar-sign mr-2 text-green-600"></i>
-                    Ingresos Mensuales ($) *
+                    Ingresos Mensuales ({simboloMoneda}) *
                   </label>
                   <input
                     type="number"
@@ -160,7 +189,7 @@ export default function NuevaEvaluacionPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <i className="fa-solid fa-receipt mr-2 text-red-600"></i>
-                    Gastos Mensuales ($) *
+                    Gastos Mensuales ({simboloMoneda}) *
                   </label>
                   <input
                     type="number"
@@ -214,7 +243,7 @@ export default function NuevaEvaluacionPage() {
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                       <p className="text-sm text-gray-600 mb-1">Ingreso Disponible</p>
                       <p className="text-2xl font-bold text-blue-600">
-                        ${resultados.ingresoDisponible.toLocaleString()}
+                        {formatMoney(resultados.ingresoDisponible)}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         {resultados.porcentajeDisponible}% de ingresos
@@ -223,7 +252,7 @@ export default function NuevaEvaluacionPage() {
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                       <p className="text-sm text-gray-600 mb-1">Capacidad de Endeudamiento</p>
                       <p className="text-2xl font-bold text-green-600">
-                        ${resultados.capacidadEndeudamiento.toLocaleString()}
+                        {formatMoney(resultados.capacidadEndeudamiento)}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Cuota máxima mensual
@@ -232,7 +261,7 @@ export default function NuevaEvaluacionPage() {
                     <div className="bg-white rounded-lg p-4 shadow-sm">
                       <p className="text-sm text-gray-600 mb-1">Monto Máximo Crédito</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        ${(resultados.capacidadEndeudamiento * 12).toLocaleString()}
+                        {formatMoney(resultados.capacidadEndeudamiento * 12)}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Estimado a 12 meses

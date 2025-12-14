@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, hashPassword } from '@/lib/auth';
+import { comparePassword, hashPassword } from '@/lib/auth';
 import { verifyToken } from '@/lib/jwt';
 
 export async function POST(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar la contraseña actual
-    const isValid = await verifyPassword(currentPassword, user.password);
+    const isValid = await comparePassword(currentPassword, user.password);
     if (!isValid) {
       return NextResponse.json({ error: 'Contraseña actual incorrecta' }, { status: 400 });
     }

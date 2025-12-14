@@ -17,7 +17,8 @@ export function withAuth(handler: Function) {
     try {
       const decoded = verifyToken(token);
       (req as any).user = decoded;
-      return handler(req, context);
+      // Pasar el usuario en el contexto para que esté disponible en los handlers
+      return handler(req, { ...context, user: decoded });
     } catch (error) {
       return NextResponse.json(
         { error: 'Token inválido' },

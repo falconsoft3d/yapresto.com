@@ -28,7 +28,10 @@ model Cliente {
   telefono        String
   direccion       String
   cedula          String        @unique
+  password        String?
   fechaNacimiento DateTime
+  empresaId       String
+  empresa         Empresa       @relation(fields: [empresaId], references: [id])
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   creditos        Credito[]
@@ -43,12 +46,17 @@ model Credito {
   cuotaMensual            Float
   montoPagado             Float                 @default(0)
   estado                  String                @default("borrador") // borrador, validado, activo, pagado, vencido
+  tokenPublico            String?               @unique // Token para compartir URL pública de aprobación
+  estadoAprobacion        String?               // pendiente, aprobado, rechazado
+  fechaRespuesta          DateTime?             // Fecha de aprobación/rechazo
   fechaInicio             DateTime              @default(now())
   fechaVencimiento        DateTime
   clienteId               String
   cliente                 Cliente               @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   configuracionCreditoId  String
   configuracionCredito    ConfiguracionCredito  @relation(fields: [configuracionCreditoId], references: [id])
+  empresaId               String
+  empresa                 Empresa               @relation(fields: [empresaId], references: [id])
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   pagos                   Pago[]
@@ -73,6 +81,8 @@ model Empresa {
   moneda         String   @default("EUR") // EUR, USD, etc.
   color          String   @default("#2563eb") // Color principal de la interfaz
   usuarios       User[]
+  clientes       Cliente[]
+  creditos       Credito[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -114,4 +124,12 @@ model Evaluacion {
   cliente                   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+}
+
+model MedioPago {
+  id        String   @id @default(cuid())
+  nombre    String
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -14,14 +14,24 @@ const pagoSchema = z.object({
 });
 
 // POST: Registrar un nuevo pago
-export const POST = withAuth(async (req: NextRequest) => {
+export const POST = withAuth(async (req: NextRequest, { user }: any) => {
   try {
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const { creditoId, monto, metodoPago, fechaPago, tipoPago, cuotasACubrir } = pagoSchema.parse(body);
 
-    // Obtener el crédito con sus cuotas y configuración
-    const credito = await prisma.credito.findUnique({
-      where: { id: creditoId },
+    // Obtener el crédito con sus cuotas y configuración (verificando que pertenezca a la empresa)
+    const credito = await prisma.credito.findFirst({
+      where: { 
+        id: creditoId,
+        empresaId: user.empresaActivaId,
+      },
       include: {
         cuotas: {
           orderBy: { numeroCuota: 'asc' },

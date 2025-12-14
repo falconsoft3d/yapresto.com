@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function EditarCreditoPage() {
   const router = useRouter();
@@ -19,10 +20,37 @@ export default function EditarCreditoPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [urlPublica, setUrlPublica] = useState('');
+  const [generandoUrl, setGenerandoUrl] = useState(false);
+  const [creditoData, setCreditoData] = useState<any>(null);
+  const [empresa, setEmpresa] = useState<any>(null);
+  const monedaEmpresa = empresa?.moneda || 'USD';
+  const simboloMoneda = getCurrencySymbol(monedaEmpresa);
+  const formatMoney = (amount: number, decimals = 2) => formatCurrency(amount, monedaEmpresa, { decimals });
 
   useEffect(() => {
     loadData();
+    loadEmpresa();
   }, []);
+
+  const loadEmpresa = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      if (!userStr) return;
+      
+      const user = JSON.parse(userStr);
+      const res = await fetch(`/api/empresas/${user.empresaActivaId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      
+      if (res.ok) {
+        setEmpresa(await res.json());
+      }
+    } catch (err) {
+      console.error('Error al cargar empresa:', err);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -42,6 +70,7 @@ export default function EditarCreditoPage() {
 
       if (creditoRes.ok) {
         const credito = await creditoRes.json();
+        setCreditoData(credito);
         const fechaInicio = new Date(credito.fechaInicio);
         const fechaFormateada = fechaInicio.toISOString().split('T')[0];
         
@@ -53,6 +82,12 @@ export default function EditarCreditoPage() {
           fechaInicio: fechaFormateada,
           estado: credito.estado,
         });
+
+        // Si ya tiene token, mostrar la URL
+        if (credito.tokenPublico) {
+          const url = `${window.location.origin}/aprobacion/${credito.tokenPublico}`;
+          setUrlPublica(url);
+        }
       }
 
       if (clientesRes.ok) {
@@ -67,6 +102,46 @@ export default function EditarCreditoPage() {
       setError('Error al cargar los datos del crédito');
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const generarUrlPublica = async () => {
+    setGenerandoUrl(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/creditos/${params.id}/generar-token`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al generar URL');
+      }
+
+      const data = await res.json();
+      setUrlPublica(data.url);
+      
+      // Copiar automáticamente al portapapeles
+      await navigator.clipboard.writeText(data.url);
+      alert('✅ URL copiada al portapapeles');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setGenerandoUrl(false);
+    }
+  };
+
+  const copiarUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(urlPublica);
+      alert('✅ URL copiada al portapapeles');
+    } catch (err) {
+      alert('❌ Error al copiar URL');
     }
   };
 
@@ -145,6 +220,83 @@ export default function EditarCreditoPage() {
               </div>
             )}
 
+            {/* Sección de URL Pública para Aprobación */}
+            {creditoData && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <i className="fa-solid fa-link text-blue-600 text-xl"></i>
+                      <h3 className="text-lg font-bold text-gray-900">Compartir Oferta con Cliente</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Genera una URL pública para que el cliente pueda ver y aprobar/rechazar la oferta de crédito
+                    </p>
+
+                    {urlPublica ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2 bg-white rounded-lg p-3 border border-gray-200">
+                          <input
+                            type="text"
+                            value={urlPublica}
+                            readOnly
+                            className="flex-1 text-sm text-gray-700 bg-transparent border-none focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={copiarUrl}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
+                          >
+                            <i className="fa-solid fa-copy mr-2"></i>
+                            Copiar
+                          </button>
+                        </div>
+
+                        {creditoData.estadoAprobacion && (
+                          <div className={`flex items-center space-x-2 p-3 rounded-lg ${
+                            creditoData.estadoAprobacion === 'aprobado' 
+                              ? 'bg-green-100 text-green-800 border border-green-300' 
+                              : creditoData.estadoAprobacion === 'rechazado'
+                              ? 'bg-red-100 text-red-800 border border-red-300'
+                              : 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                          }`}>
+                            <i className={`fa-solid ${
+                              creditoData.estadoAprobacion === 'aprobado' ? 'fa-check-circle' :
+                              creditoData.estadoAprobacion === 'rechazado' ? 'fa-times-circle' :
+                              'fa-clock'
+                            }`}></i>
+                            <span className="font-semibold">
+                              Estado: {creditoData.estadoAprobacion === 'aprobado' ? 'Aprobado' : 
+                                      creditoData.estadoAprobacion === 'rechazado' ? 'Rechazado' : 
+                                      'Pendiente de respuesta'}
+                            </span>
+                            {creditoData.fechaRespuesta && (
+                              <span className="text-sm">
+                                el {new Date(creditoData.fechaRespuesta).toLocaleDateString('es-CL')}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={generarUrlPublica}
+                        disabled={generandoUrl}
+                        className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors font-semibold"
+                      >
+                        {generandoUrl ? (
+                          <><i className="fa-solid fa-spinner fa-spin mr-2"></i> Generando...</>
+                        ) : (
+                          <><i className="fa-solid fa-share-nodes mr-2"></i> Generar URL Pública</>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -188,7 +340,7 @@ export default function EditarCreditoPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Monto ($) *
+                    Monto ({simboloMoneda}) *
                   </label>
                   <input
                     type="number"

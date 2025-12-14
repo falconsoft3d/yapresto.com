@@ -13,9 +13,19 @@ const creditoSchema = z.object({
 });
 
 // GET: Obtener todos los créditos
-export const GET = withAuth(async (req: NextRequest) => {
+export const GET = withAuth(async (req: NextRequest, { user }: any) => {
   try {
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const creditos = await prisma.credito.findMany({
+      where: {
+        empresaId: user.empresaActivaId,
+      },
       include: {
         cliente: true,
         pagos: true,
@@ -41,8 +51,15 @@ export const GET = withAuth(async (req: NextRequest) => {
 });
 
 // POST: Crear un nuevo crédito
-export const POST = withAuth(async (req: NextRequest) => {
+export const POST = withAuth(async (req: NextRequest, { user }: any) => {
   try {
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const { monto, plazoMeses, clienteId, configuracionCreditoId, fechaInicio } = creditoSchema.parse(body);
 
@@ -85,6 +102,7 @@ export const POST = withAuth(async (req: NextRequest) => {
         fechaVencimiento,
         clienteId,
         configuracionCreditoId,
+        empresaId: user.empresaActivaId,
         cuotas: {
           create: cuotasCalculadas.map(cuota => ({
             numeroCuota: cuota.numeroCuota,

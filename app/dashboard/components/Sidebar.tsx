@@ -135,7 +135,6 @@ export default function Sidebar({ activeTab, setActiveTab, user, onLogout, clien
                   : 'hover:bg-white/10'
               } group flex items-center w-full px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-150`}
               style={activeTab === item.id ? { backgroundColor: adjustColor(primaryColor, -30) } : { color: 'rgba(255, 255, 255, 0.9)' }}
-              style={activeTab === item.id ? { backgroundColor: adjustColor(primaryColor, -30) } : {}}
             >
               <i className={`${item.icon} text-lg mr-3`}></i>
               <div className="flex-1 text-left">

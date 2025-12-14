@@ -11,15 +11,27 @@ const evaluacionSchema = z.object({
 });
 
 // GET: Obtener todas las evaluaciones
-export const GET = withAuth(async (req: NextRequest) => {
+export const GET = withAuth(async (req: NextRequest, { user }: any) => {
   try {
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const clienteId = searchParams.get('clienteId');
 
     if (clienteId) {
-      // Obtener evaluaciones de un cliente específico
+      // Obtener evaluaciones de un cliente específico (verificando que pertenezca a la empresa)
       const evaluaciones = await prisma.evaluacion.findMany({
-        where: { clienteId },
+        where: { 
+          clienteId,
+          cliente: {
+            empresaId: user.empresaActivaId,
+          },
+        },
         include: {
           cliente: true,
         },
@@ -28,8 +40,13 @@ export const GET = withAuth(async (req: NextRequest) => {
       return NextResponse.json(evaluaciones);
     }
 
-    // Obtener todas las evaluaciones
+    // Obtener todas las evaluaciones de la empresa
     const evaluaciones = await prisma.evaluacion.findMany({
+      where: {
+        cliente: {
+          empresaId: user.empresaActivaId,
+        },
+      },
       include: {
         cliente: true,
       },

@@ -13,10 +13,22 @@ const creditoUpdateSchema = z.object({
 });
 
 // GET: Obtener un crédito por ID
-export const GET = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAuth(async (req: NextRequest, context: any) => {
   try {
-    const credito = await prisma.credito.findUnique({
-      where: { id: params.id },
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
+    const credito = await prisma.credito.findFirst({
+      where: { 
+        id: params.id,
+        empresaId: user.empresaActivaId,
+      },
       include: {
         cliente: true,
         configuracionCredito: true,
@@ -50,15 +62,27 @@ export const GET = withAuth(async (req: NextRequest, { params }: { params: { id:
 });
 
 // PUT: Actualizar un crédito
-export const PUT = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAuth(async (req: NextRequest, context: any) => {
   try {
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const data = creditoUpdateSchema.parse(body);
 
     // Si se actualiza monto, plazo o configuración, recalcular cuotas
     if (data.monto || data.plazoMeses || data.configuracionCreditoId) {
-      const creditoActual = await prisma.credito.findUnique({
-        where: { id: params.id },
+      const creditoActual = await prisma.credito.findFirst({
+        where: { 
+          id: params.id,
+          empresaId: user.empresaActivaId,
+        },
         include: { configuracionCredito: true },
       });
 
@@ -169,8 +193,32 @@ export const PUT = withAuth(async (req: NextRequest, { params }: { params: { id:
 });
 
 // DELETE: Eliminar un crédito
-export const DELETE = withAuth(async (req: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAuth(async (req: NextRequest, context: any) => {
   try {
+    const { params, user } = context;
+    
+    if (!user?.empresaActivaId) {
+      return NextResponse.json(
+        { error: 'No hay empresa activa' },
+        { status: 400 }
+      );
+    }
+
+    // Verificar que el crédito pertenece a la empresa
+    const creditoExistente = await prisma.credito.findFirst({
+      where: {
+        id: params.id,
+        empresaId: user.empresaActivaId,
+      },
+    });
+
+    if (!creditoExistente) {
+      return NextResponse.json(
+        { error: 'Crédito no encontrado' },
+        { status: 404 }
+      );
+    }
+
     await prisma.credito.delete({
       where: { id: params.id },
     });

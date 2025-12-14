@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function CuotasCreditoPage() {
   const router = useRouter();
@@ -9,14 +13,39 @@ export default function CuotasCreditoPage() {
   const [credito, setCredito] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [empresa, setEmpresa] = useState<any>(null);
+
+  // Obtener moneda de la empresa
+  const monedaEmpresa = empresa?.moneda || 'USD';
+  const simboloMoneda = getCurrencySymbol(monedaEmpresa);
+  const formatMoney = (amount: number, decimals = 2) => formatCurrency(amount, monedaEmpresa, { decimals });
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      // Cargar empresa activa
+      if (parsedUser.empresaActivaId) {
+        loadEmpresa(parsedUser.empresaActivaId);
+      }
     }
     loadCredito();
   }, []);
+
+  const loadEmpresa = async (empresaId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/empresas/${empresaId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setEmpresa(await res.json());
+      }
+    } catch (error) {
+      console.error('Error al cargar empresa:', error);
+    }
+  };
 
   const loadCredito = async () => {
     try {
@@ -63,6 +92,90 @@ export default function CuotasCreditoPage() {
   const totalInteres = credito.cuotas?.reduce((sum: number, c: any) => sum + c.interes, 0) || 0;
   const totalPagado = credito.cuotas?.reduce((sum: number, c: any) => sum + c.montoCuota, 0) || 0;
 
+  const exportarPDF = () => {
+    const doc = new jsPDF();
+    
+    // Título
+    doc.setFontSize(18);
+    doc.text('Tabla de Amortización', 14, 20);
+    
+    // Información del cliente y crédito
+    doc.setFontSize(10);
+    doc.text(`Cliente: ${credito.cliente?.nombre} ${credito.cliente?.apellido}`, 14, 30);
+    doc.text(`Cédula: ${credito.cliente?.cedula}`, 14, 36);
+    doc.text(`Monto: ${formatMoney(credito.monto)}`, 14, 42);
+    doc.text(`Interés: ${credito.tasaInteres}%`, 80, 42);
+    doc.text(`Plazo: ${credito.plazoMeses} meses`, 130, 42);
+    doc.text(`Cuota Mensual: ${formatMoney(credito.cuotaMensual)}`, 14, 48);
+    doc.text(`Total Intereses: ${formatMoney(totalInteres)}`, 80, 48);
+    doc.text(`Total a Pagar: ${formatMoney(totalPagado)}`, 130, 48);
+    
+    // Tabla
+    autoTable(doc, {
+      startY: 55,
+      head: [['No.', 'Fecha', 'Balance Inicial', 'Cuota', 'Capital', 'Interés', 'Balance Final', 'Estado']],
+      body: credito.cuotas?.map((cuota: any) => [
+        cuota.numeroCuota,
+        new Date(cuota.fechaVencimiento).toLocaleDateString('es-ES'),
+        formatMoney(cuota.balanceInicial),
+        formatMoney(cuota.montoCuota),
+        formatMoney(cuota.capital),
+        formatMoney(cuota.interes),
+        formatMoney(cuota.balanceFinal),
+        cuota.pagado ? 'Pagado' : 'Pendiente'
+      ]) || [],
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+    
+    doc.save(`amortizacion_${credito.cliente?.cedula}_${Date.now()}.pdf`);
+  };
+
+  const exportarExcel = () => {
+    const datos = [
+      ['Tabla de Amortización'],
+      [],
+      ['Cliente:', `${credito.cliente?.nombre} ${credito.cliente?.apellido}`],
+      ['Cédula:', credito.cliente?.cedula],
+      ['Monto:', formatMoney(credito.monto)],
+      ['Interés:', `${credito.tasaInteres}%`],
+      ['Plazo:', `${credito.plazoMeses} meses`],
+      ['Cuota Mensual:', formatMoney(credito.cuotaMensual)],
+      ['Total Intereses:', formatMoney(totalInteres)],
+      ['Total a Pagar:', formatMoney(totalPagado)],
+      [],
+      ['No.', 'Fecha', 'Balance Inicial', 'Cuota', 'Capital', 'Interés', 'Balance Final', 'Estado'],
+      ...(credito.cuotas?.map((cuota: any) => [
+        cuota.numeroCuota,
+        new Date(cuota.fechaVencimiento).toLocaleDateString('es-ES'),
+        cuota.balanceInicial.toFixed(2),
+        cuota.montoCuota.toFixed(2),
+        cuota.capital.toFixed(2),
+        cuota.interes.toFixed(2),
+        cuota.balanceFinal.toFixed(2),
+        cuota.pagado ? 'Pagado' : 'Pendiente'
+      ]) || [])
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(datos);
+    
+    // Ajustar ancho de columnas
+    ws['!cols'] = [
+      { wch: 5 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 10 }
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, 'Amortización');
+    XLSX.writeFile(wb, `amortizacion_${credito.cliente?.cedula}_${Date.now()}.xlsx`);
+  };
+
   return (
     <>
       {/* Header */}
@@ -74,13 +187,31 @@ export default function CuotasCreditoPage() {
               Crédito de {credito.cliente?.nombre} {credito.cliente?.apellido}
             </p>
           </div>
-          <button
-            onClick={() => router.push('/dashboard?tab=creditos')}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <span>←</span>
-            <span>Volver</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={exportarPDF}
+              className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm"
+              title="Exportar a PDF"
+            >
+              <i className="fa-solid fa-file-pdf"></i>
+              <span>PDF</span>
+            </button>
+            <button
+              onClick={exportarExcel}
+              className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium transition-colors shadow-sm"
+              title="Exportar a Excel"
+            >
+              <i className="fa-solid fa-file-excel"></i>
+              <span>Excel</span>
+            </button>
+            <button
+              onClick={() => router.push('/dashboard?tab=creditos')}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <span>←</span>
+              <span>Volver</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -96,7 +227,7 @@ export default function CuotasCreditoPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div>
                 <p className="text-sm text-gray-500">Monto del Préstamo</p>
-                <p className="text-xl font-bold text-gray-900">${credito.monto.toLocaleString()}</p>
+                <p className="text-xl font-bold text-gray-900">{formatMoney(credito.monto)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Interés Anual</p>
@@ -121,7 +252,7 @@ export default function CuotasCreditoPage() {
                 <div>
                   <p className="text-sm text-gray-500">Cuota Mensual</p>
                   <p className="text-xl font-bold" style={{ color: user?.empresaActiva?.color || '#2563eb' }}>
-                    ${credito.cuotaMensual.toFixed(2)}
+                    {formatMoney(credito.cuotaMensual)}
                   </p>
                 </div>
                 <div>
@@ -130,11 +261,11 @@ export default function CuotasCreditoPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Interés Total</p>
-                  <p className="text-xl font-bold text-orange-600">${totalInteres.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-orange-600">{formatMoney(totalInteres)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total a Pagar</p>
-                  <p className="text-xl font-bold text-green-600">${totalPagado.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-green-600">{formatMoney(totalPagado)}</p>
                 </div>
               </div>
             </div>
@@ -197,21 +328,21 @@ export default function CuotasCreditoPage() {
                         {new Date(cuota.fechaVencimiento).toLocaleDateString('es-ES')}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900 font-medium">
-                        ${cuota.balanceInicial.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(cuota.balanceInicial)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold" style={{ color: user?.empresaActiva?.color || '#2563eb' }}>
-                        ${cuota.montoCuota.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(cuota.montoCuota)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
-                        ${cuota.capital.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(cuota.capital)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-orange-600">
-                        ${cuota.interes.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(cuota.interes)}
                       </td>
                       <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-semibold ${
                         cuota.balanceFinal < 1 ? 'text-green-600' : 'text-gray-900'
                       }`}>
-                        ${cuota.balanceFinal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatMoney(cuota.balanceFinal)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-center">
                         {cuota.pagado ? (
@@ -235,16 +366,16 @@ export default function CuotasCreditoPage() {
                       TOTALES:
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold" style={{ color: user?.empresaActiva?.color || '#2563eb' }}>
-                      ${totalPagado.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatMoney(totalPagado)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                      ${credito.monto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatMoney(credito.monto)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-orange-600">
-                      ${totalInteres.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {formatMoney(totalInteres)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-green-600">
-                      $0.00
+                      {formatMoney(0)}
                     </td>
                     <td></td>
                   </tr>
