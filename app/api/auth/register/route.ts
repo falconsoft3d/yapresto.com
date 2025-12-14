@@ -12,6 +12,15 @@ const registerSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Verificar si el registro está habilitado
+    const allowRegistration = process.env.ALLOW_REGISTRATION === 'true';
+    if (!allowRegistration) {
+      return NextResponse.json(
+        { error: 'El registro de nuevos usuarios no está permitido por el administrador' },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { email, password, name } = registerSchema.parse(body);
 
