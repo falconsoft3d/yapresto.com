@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withAuth } from '@/lib/middleware';
 import { z } from 'zod';
+import { calcularCuotas } from '@/lib/calculadora-creditos';
 
 const creditoSchema = z.object({
   monto: z.number().positive(),
-  tasaInteres: z.number().positive(),
   plazoMeses: z.number().int().positive(),
   clienteId: z.string(),
+  configuracionCreditoId: z.string(),
+  fechaInicio: z.string().optional(),
 });
 
 // GET: Obtener todos los créditos
@@ -17,6 +19,12 @@ export const GET = withAuth(async (req: NextRequest) => {
       include: {
         cliente: true,
         pagos: true,
+        configuracionCredito: true,
+        cuotas: {
+          orderBy: {
+            numeroCuota: 'asc',
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -36,28 +44,67 @@ export const GET = withAuth(async (req: NextRequest) => {
 export const POST = withAuth(async (req: NextRequest) => {
   try {
     const body = await req.json();
-    const { monto, tasaInteres, plazoMeses, clienteId } = creditoSchema.parse(body);
+    const { monto, plazoMeses, clienteId, configuracionCreditoId, fechaInicio } = creditoSchema.parse(body);
 
-    // Calcular cuota mensual (fórmula de amortización)
-    const tasaMensual = tasaInteres / 100 / 12;
-    const cuotaMensual = (monto * tasaMensual * Math.pow(1 + tasaMensual, plazoMeses)) / 
-                         (Math.pow(1 + tasaMensual, plazoMeses) - 1);
+    // Obtener la configuración de crédito
+    const configuracion = await prisma.configuracionCredito.findUnique({
+      where: { id: configuracionCreditoId },
+    });
 
-    // Calcular fecha de vencimiento
-    const fechaVencimiento = new Date();
-    fechaVencimiento.setMonth(fechaVencimiento.getMonth() + plazoMeses);
+    if (!configuracion) {
+      return NextResponse.json(
+        { error: 'Configuración de crédito no encontrada' },
+        { status: 404 }
+      );
+    }
 
+    // Calcular fecha de inicio
+    const fechaInicioDate = fechaInicio ? new Date(fechaInicio) : new Date();
+    
+    // Calcular cuotas usando la calculadora
+    const cuotasCalculadas = calcularCuotas(
+      monto,
+      configuracion.interesAnual,
+      plazoMeses,
+      fechaInicioDate,
+      configuracion.tipoCalculo
+    );
+
+    // Calcular cuota mensual promedio y fecha de vencimiento
+    const cuotaMensual = cuotasCalculadas[0].montoCuota;
+    const fechaVencimiento = cuotasCalculadas[cuotasCalculadas.length - 1].fechaVencimiento;
+
+    // Crear el crédito con sus cuotas
     const credito = await prisma.credito.create({
       data: {
         monto,
-        tasaInteres,
+        tasaInteres: configuracion.interesAnual,
         plazoMeses,
         cuotaMensual,
+        fechaInicio: fechaInicioDate,
         fechaVencimiento,
         clienteId,
+        configuracionCreditoId,
+        cuotas: {
+          create: cuotasCalculadas.map(cuota => ({
+            numeroCuota: cuota.numeroCuota,
+            fechaVencimiento: cuota.fechaVencimiento,
+            montoCuota: cuota.montoCuota,
+            capital: cuota.capital,
+            interes: cuota.interes,
+            balanceInicial: cuota.balanceInicial,
+            balanceFinal: cuota.balanceFinal,
+          })),
+        },
       },
       include: {
         cliente: true,
+        configuracionCredito: true,
+        cuotas: {
+          orderBy: {
+            numeroCuota: 'asc',
+          },
+        },
       },
     });
 

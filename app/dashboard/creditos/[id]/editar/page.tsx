@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
-export default function NuevoCreditoPage() {
+export default function EditarCreditoPage() {
   const router = useRouter();
+  const params = useParams();
   const [clientes, setClientes] = useState<any[]>([]);
   const [configuraciones, setConfiguraciones] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -13,48 +14,59 @@ export default function NuevoCreditoPage() {
     configuracionCreditoId: '',
     plazoMeses: '',
     fechaInicio: '',
+    estado: 'borrador',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
-    loadClientes();
-    loadConfiguraciones();
+    loadData();
   }, []);
 
-  const loadClientes = async () => {
+  const loadData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/clientes', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      
+      const [creditoRes, clientesRes, configuracionesRes] = await Promise.all([
+        fetch(`/api/creditos/${params.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch('/api/clientes', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch('/api/configuracion-creditos', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+      ]);
 
-      if (res.ok) {
-        const data = await res.json();
-        setClientes(data);
+      if (creditoRes.ok) {
+        const credito = await creditoRes.json();
+        const fechaInicio = new Date(credito.fechaInicio);
+        const fechaFormateada = fechaInicio.toISOString().split('T')[0];
+        
+        setFormData({
+          clienteId: credito.clienteId,
+          monto: credito.monto.toString(),
+          configuracionCreditoId: credito.configuracionCreditoId,
+          plazoMeses: credito.plazoMeses.toString(),
+          fechaInicio: fechaFormateada,
+          estado: credito.estado,
+        });
       }
-    } catch (error) {
-      console.error('Error al cargar clientes:', error);
-    }
-  };
 
-  const loadConfiguraciones = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/configuracion-creditos', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setConfiguraciones(data);
+      if (clientesRes.ok) {
+        setClientes(await clientesRes.json());
       }
-    } catch (error) {
-      console.error('Error al cargar configuraciones:', error);
+
+      if (configuracionesRes.ok) {
+        setConfiguraciones(await configuracionesRes.json());
+      }
+    } catch (err) {
+      console.error('Error al cargar datos:', err);
+      setError('Error al cargar los datos del crédito');
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -65,27 +77,27 @@ export default function NuevoCreditoPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/creditos', {
-        method: 'POST',
+      const res = await fetch(`/api/creditos/${params.id}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          clienteId: formData.clienteId,
           monto: parseFloat(formData.monto),
           configuracionCreditoId: formData.configuracionCreditoId,
           plazoMeses: parseInt(formData.plazoMeses),
-          fechaInicio: formData.fechaInicio || undefined,
+          fechaInicio: formData.fechaInicio,
+          estado: formData.estado,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Error al crear crédito');
+        throw new Error(data.error || 'Error al actualizar crédito');
       }
 
-      router.push('/dashboard');
+      router.push('/dashboard?tab=creditos');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -93,17 +105,28 @@ export default function NuevoCreditoPage() {
     }
   };
 
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <i className="fa-solid fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
+          <p className="text-gray-600">Cargando crédito...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Nuevo Crédito</h2>
-            <p className="text-sm text-gray-500 mt-1">Registra un nuevo crédito en el sistema</p>
+            <h2 className="text-2xl font-bold text-gray-900">Editar Crédito</h2>
+            <p className="text-sm text-gray-500 mt-1">Modifica los datos del crédito</p>
           </div>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard?tab=creditos')}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <span>←</span>
@@ -125,15 +148,13 @@ export default function NuevoCreditoPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cliente *
+                  Cliente (no editable)
                 </label>
                 <select
-                  required
+                  disabled
                   value={formData.clienteId}
-                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                 >
-                  <option value="">Seleccione un cliente</option>
                   {clientes.map((cliente) => (
                     <option key={cliente.id} value={cliente.id}>
                       {cliente.nombre} {cliente.apellido} - {cliente.cedula}
@@ -160,11 +181,11 @@ export default function NuevoCreditoPage() {
                   ))}
                 </select>
                 <p className="text-sm text-gray-500 mt-1">
-                  La tasa de interés y tipo de cálculo se tomarán de la configuración seleccionada
+                  Al cambiar la configuración se recalcularán las cuotas
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Monto ($) *
@@ -176,7 +197,6 @@ export default function NuevoCreditoPage() {
                     value={formData.monto}
                     onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="10000"
                   />
                 </div>
 
@@ -190,36 +210,53 @@ export default function NuevoCreditoPage() {
                     value={formData.plazoMeses}
                     onChange={(e) => setFormData({ ...formData, plazoMeses: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="12"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fecha de Inicio *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.fechaInicio}
+                    onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fecha de Inicio
+                    Estado *
                   </label>
-                  <input
-                    type="date"
-                    value={formData.fechaInicio}
-                    onChange={(e) => setFormData({ ...formData, fechaInicio: e.target.value })}
+                  <select
+                    required
+                    value={formData.estado}
+                    onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">
-                    Dejar vacío para usar hoy
-                  </p>
+                  >
+                    <option value="borrador">Borrador</option>
+                    <option value="validado">Validado</option>
+                    <option value="activo">Activo</option>
+                    <option value="pagado">Pagado</option>
+                    <option value="vencido">Vencido</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <strong>Nota:</strong> Las cuotas se calcularán automáticamente según la configuración seleccionada usando el sistema de amortización correspondiente (Francés, Alemán o Americano).
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Advertencia:</strong> Al modificar el monto, plazo o configuración, se recalcularán todas las cuotas y se perderá el historial anterior.
                 </p>
               </div>
 
               <div className="flex justify-end space-x-4">
                 <button
                   type="button"
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/dashboard?tab=creditos')}
                   className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancelar
@@ -229,7 +266,7 @@ export default function NuevoCreditoPage() {
                   disabled={loading}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {loading ? 'Guardando...' : 'Crear Crédito'}
+                  {loading ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>

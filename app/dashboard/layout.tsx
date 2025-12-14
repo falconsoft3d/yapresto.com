@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Sidebar from './components/Sidebar';
 
 export default function DashboardLayout({
@@ -11,6 +11,7 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [creditos, setCreditos] = useState<any[]>([]);
@@ -18,15 +19,23 @@ export default function DashboardLayout({
 
   // Determinar tab activo basado en la ruta
   const getActiveTab = () => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['overview', 'clientes', 'evaluacion', 'creditos', 'pagos', 'cuotas', 'reportes', 'configuracion', 'perfil', 'empresas', 'usuarios', 'configuracion-creditos'].includes(tabParam)) {
+      return tabParam as 'overview' | 'clientes' | 'evaluacion' | 'creditos' | 'pagos' | 'cuotas' | 'reportes' | 'configuracion' | 'perfil' | 'empresas' | 'usuarios' | 'configuracion-creditos';
+    }
     if (pathname === '/dashboard') return 'overview';
     if (pathname.includes('/clientes')) return 'clientes';
     if (pathname.includes('/creditos')) return 'creditos';
     if (pathname.includes('/reportes')) return 'reportes';
     if (pathname.includes('/configuracion')) return 'configuracion';
+    if (pathname.includes('/perfil')) return 'perfil';
+    if (pathname.includes('/empresas')) return 'empresas';
+    if (pathname.includes('/usuarios')) return 'usuarios';
+    if (pathname.includes('/configuracion-creditos')) return 'configuracion-creditos';
     return 'overview';
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'clientes' | 'creditos' | 'reportes' | 'configuracion'>(getActiveTab());
+  const [activeTab, setActiveTab] = useState<'overview' | 'clientes' | 'evaluacion' | 'creditos' | 'pagos' | 'cuotas' | 'reportes' | 'configuracion' | 'perfil' | 'empresas' | 'usuarios' | 'configuracion-creditos'>(getActiveTab());
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -43,7 +52,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     setActiveTab(getActiveTab());
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   const loadData = async (token: string) => {
     try {
@@ -97,11 +106,7 @@ export default function DashboardLayout({
         activeTab={activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab === 'overview') router.push('/dashboard');
-          if (tab === 'clientes') router.push('/dashboard');
-          if (tab === 'creditos') router.push('/dashboard');
-          if (tab === 'reportes') router.push('/dashboard');
-          if (tab === 'configuracion') router.push('/dashboard');
+          router.push(`/dashboard?tab=${tab}`);
         }}
         user={user}
         onLogout={handleLogout}

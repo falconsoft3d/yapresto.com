@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
     // Buscar usuario
     const user = await prisma.user.findUnique({
       where: { email },
+      include: {
+        empresaActiva: true,
+      },
     });
 
     if (!user) {
@@ -49,6 +52,9 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        profileImage: user.profileImage,
+        empresaActiva: user.empresaActiva,
+        empresaActivaId: user.empresaActivaId,
       },
     });
   } catch (error) {
