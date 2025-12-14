@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("user") // user, admin
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cliente {
+  id              String    @id @default(cuid())
+  nombre          String
+  apellido        String
+  email           String    @unique
+  telefono        String
+  direccion       String
+  cedula          String    @unique
+  fechaNacimiento DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  creditos        Credito[]
+}
+
+model Credito {
+  id              String   @id @default(cuid())
+  monto           Float
+  tasaInteres     Float
+  plazoMeses      Int
+  cuotaMensual    Float
+  montoPagado     Float    @default(0)
+  estado          String   @default("activo") // activo, pagado, vencido
+  fechaInicio     DateTime @default(now())
+  fechaVencimiento DateTime
+  clienteId       String
+  cliente         Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  pagos           Pago[]
+}
+
+model Pago {
+  id          String   @id @default(cuid())
+  monto       Float
+  fechaPago   DateTime @default(now())
+  metodoPago  String   // efectivo, transferencia, tarjeta
+  creditoId   String
+  credito     Credito  @relation(fields: [creditoId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
