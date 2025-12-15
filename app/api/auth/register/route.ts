@@ -36,14 +36,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Crear el usuario
+    // Crear empresa por defecto para el usuario
     const hashedPassword = await hashPassword(password);
+    const empresa = await prisma.empresa.create({
+      data: {
+        nombre: `Empresa de ${name}`,
+        color: '#2563eb',
+        moneda: 'USD',
+      },
+    });
+
+    // Crear el usuario con la empresa asignada
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
         role: 'user',
+        empresaActivaId: empresa.id,
+      },
+      include: {
+        empresaActiva: true,
       },
     });
 
@@ -52,6 +65,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email: user.email,
       role: user.role,
+      empresaActivaId: user.empresaActivaId || undefined,
     });
 
     return NextResponse.json({
@@ -61,9 +75,12 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        empresaActiva: user.empresaActiva,
+        empresaActivaId: user.empresaActivaId,
       },
     });
   } catch (error) {
+    console.error('Error en registro:', error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Datos inválidos', details: error.errors },
@@ -71,7 +88,7 @@ export async function POST(req: NextRequest) {
       );
     }
     return NextResponse.json(
-      { error: 'Error al registrar usuario' },
+      { error: 'Error al registrar usuario', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
